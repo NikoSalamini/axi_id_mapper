@@ -1,0 +1,24 @@
+C:/Users/nikos/Documents/GitHub/AxiIDMapper/NBitRegister.vhd {1 {vcom -work work -2002 -explicit -stats=none C:/Users/nikos/Documents/GitHub/AxiIDMapper/NBitRegister.vhd
+Model Technology ModelSim - Intel FPGA Edition vcom 10.5b Compiler 2016.10 Oct  5 2016
+-- Loading package STANDARD
+-- Loading package TEXTIO
+-- Loading package std_logic_1164
+-- Compiling entity NBitRegister
+-- Compiling architecture Behavioral of NBitRegister
+
+} {} {}} C:/Users/nikos/Documents/GitHub/AxiIDMapper/AXI_ID_Mapper.vhd {0 {vcom -work work -2002 -explicit -stats=none C:/Users/nikos/Documents/GitHub/AxiIDMapper/AXI_ID_Mapper.vhd
+Model Technology ModelSim - Intel FPGA Edition vcom 10.5b Compiler 2016.10 Oct  5 2016
+-- Loading package STANDARD
+-- Loading package TEXTIO
+-- Loading package std_logic_1164
+-- Compiling entity AXI_ID_Mapper
+-- Compiling architecture Behavioral of AXI_ID_Mapper
+** Error: C:/Users/nikos/Documents/GitHub/AxiIDMapper/AXI_ID_Mapper.vhd(62): near "end": (vcom-1576) expecting GENERATE or THEN or USE.
+** Error: C:/Users/nikos/Documents/GitHub/AxiIDMapper/AXI_ID_Mapper.vhd(64): Illegal sequential statement.
+** Error: C:/Users/nikos/Documents/GitHub/AxiIDMapper/AXI_ID_Mapper.vhd(68): near "end": (vcom-1576) expecting GENERATE or THEN or USE.
+** Error: C:/Users/nikos/Documents/GitHub/AxiIDMapper/AXI_ID_Mapper.vhd(71): Illegal sequential statement.
+** Error: C:/Users/nikos/Documents/GitHub/AxiIDMapper/AXI_ID_Mapper.vhd(75): near "end": (vcom-1576) expecting GENERATE or THEN or USE.
+** Error: C:/Users/nikos/Documents/GitHub/AxiIDMapper/AXI_ID_Mapper.vhd(77): Illegal sequential statement.
+** Error: C:/Users/nikos/Documents/GitHub/AxiIDMapper/AXI_ID_Mapper.vhd(81): near "end": (vcom-1576) expecting GENERATE or THEN or USE.
+
+} {8.0 15.0} {}}

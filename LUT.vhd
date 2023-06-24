@@ -41,23 +41,26 @@ entity LUT is
 	generic(
 		FIRST_POOL_VALUE: integer := 0; -- the first value of the pool
 		POOL_SIZE: integer := 8; -- the pool size
-		VALUE_WIDTH: integer := 8; -- value width of the output axi id
+		VALUE_WIDTH: integer := 6; -- value width of the output axi id
 		COUNTER_WIDTH: integer := 2 -- counter of active transactions with the same axi id
 	);
     port ( 
 		clk	: in std_logic;
 		reset: in std_logic;
-        S_AXI_ID : in std_logic_vector(5 downto 0);
+        S_AXI_ID_REQ : in std_logic_vector(5 downto 0);
+        S_AXI_ID_RSP : in std_logic_vector(5 downto 0);
         S_VALID_REQ: in std_logic; -- the valid signal of the request 
         S_VALID_RSP: in std_logic; -- the valid signal of the response
-        M_AXI_ID: out std_logic_vector(5 downto 0)
+        M_AXI_ID_REQ: out std_logic_vector(5 downto 0);
+        M_AXI_ID_RSP: out std_logic_vector(5 downto 0);
+        error: out std_logic := '0'
     );
 end LUT;
 
 architecture Behavioral of LUT is
 
 -- NBitRegister component
--- It will hold: USED_COUNTER | ORIGINAL_AXI_ID | REMAPPED_AXI_ID
+-- It will hold: USED_COUNTER [13:12] | ORIGINAL_AXI_ID [11:6] | REMAPPED_AXI_ID [5:0]
 component NBitRegister is
 	generic (
 		N       : positive := 8
@@ -78,7 +81,7 @@ signal registers_output  : t_signal_array;
 -- constant
 constant InitCounter : std_logic_vector(COUNTER_WIDTH-1 downto 0) := (others => '0');
 constant InitMappedAxiId : std_logic_vector(VALUE_WIDTH-1 downto 0) := (others => '0');
-constant CounterMax : std_logic_vector(COUNTER_WIDTH-1 downto 0) := (others => '1');
+constant CounterMax: std_logic_vector(COUNTER_WIDTH-1 downto 0) := (others => '1');
 
 begin
     initialize_registers: process
@@ -98,37 +101,96 @@ begin
 		);
 	end generate registers_def;
 	
+	-- VALID_REQ PROCESS
     process(S_VALID_REQ)
     variable FREE_CHECK : boolean;
+    variable AXI_ID_CHECK : boolean;
     begin
         if rising_edge(S_VALID_REQ) then -- valid request transaction is ready
+            -- used to not considering the execution of the subsequent ifs
+            AXI_ID_CHECK := false; 
             FREE_CHECK := false;
-            -- check which value of the pool is free and assign to output, update the original AXI ID
-            if registers_output(0)(VALUE_WIDTH+COUNTER_WIDTH-1 downto VALUE_WIDTH+1) = CounterMax  then
-                -- save the input AXI ID
-                
-                -- new mapped AXI ID
-                registers_input(0) <= std_logic_vector( unsigned(registers_output(0)) + 1);
-                M_AXI_ID <= std_logic_vector(registers_output(0)(VALUE_WIDTH-1 downto 0));
-                FREE_CHECK := true;
-            end if;
             
-			for i in 1 to POOL_SIZE-1 loop
-				if (registers_output(i)(VALUE_WIDTH+COUNTER_WIDTH-1 downto VALUE_WIDTH+1) = CounterMax) and (FREE_CHECK = false) then
-					registers_input(0) <= std_logic_vector( unsigned(registers_output(0)) + 1);
-					M_AXI_ID <= std_logic_vector(registers_output(i)(VALUE_WIDTH-1 downto 0));
-					FREE_CHECK := true;
+            -- 1) check if there is axi id match
+            -- -counter must be >= 1 to be in use
+            -- -if the counter is max, all one, an error is raised indicating that the maximum number of transaction for an axi id
+            -- has neem reached
+            for i in 0 to POOL_SIZE-1 loop
+				if (registers_output(i)(2*VALUE_WIDTH-1 downto VALUE_WIDTH) = S_AXI_ID_REQ) -- saved AXI ID match
+				   and (registers_output(i)(2*VALUE_WIDTH+COUNTER_WIDTH-1 downto 2*VALUE_WIDTH) >= std_logic_vector(to_unsigned(1, COUNTER_WIDTH))) -- counter at least 1
+				   and (AXI_ID_CHECK = false)  then
+				   
+				   -- axi id match
+				    AXI_ID_CHECK := true;
+				    
+				    -- the entry reached counter_max? y/n
+                    if registers_output(i)(2*VALUE_WIDTH+COUNTER_WIDTH -1 downto 2*VALUE_WIDTH) = CounterMax then 
+                        error <= '1';
+                    else
+                        -- increment counter, save the mapped AXI ID, output the remapped AXI ID
+                        registers_input(i) <= 
+                            std_logic_vector(unsigned(registers_output(i)(2*VALUE_WIDTH+COUNTER_WIDTH -1 downto 2*VALUE_WIDTH) + 1)) -- COUNTER + 1
+                            & S_AXI_ID_REQ -- AXI_ID in input to be saved
+                            & registers_output(i) (VALUE_WIDTH-1 downto 0); -- AXI_ID_REMAPPED to the output (constant for each entry)
+                        M_AXI_ID_REQ <= std_logic_vector(registers_output(i)(VALUE_WIDTH-1 downto 0)); -- output
+                    end if;
+                end if;
+			end loop;
+            
+            -- 2) if no AXI_ID match, check if there is a free axi id  
+            -- -check for entries with counter = 0
+            -- -if there are no FREE AXI IDs generate error  
+			for i in 0 to POOL_SIZE-1 loop
+				if (registers_output(i)(2*VALUE_WIDTH+COUNTER_WIDTH-1 downto VALUE_WIDTH+1) = std_logic_vector(to_unsigned(0, COUNTER_WIDTH))) 
+				and (FREE_CHECK = false) 
+				and (AXI_ID_CHECK = false) then
+                    FREE_CHECK := true;                  
+					-- increment counter, save the mapped AXI ID, output the remapped AXI ID
+                    registers_input(i) <= 
+                        std_logic_vector(unsigned(registers_output(i)(2*VALUE_WIDTH+COUNTER_WIDTH -1 downto 2*VALUE_WIDTH) + 1)) -- COUNTER + 1
+                        & S_AXI_ID_REQ -- AXI_ID in input to be saved
+                        & registers_output(i) (VALUE_WIDTH-1 downto 0); -- AXI_ID_REMAPPED
+					M_AXI_ID_REQ <= std_logic_vector(registers_output(i)(VALUE_WIDTH-1 downto 0)); --output the remapped axi_id
 				end if;
 			end loop;
+			
+			-- if the research indicates no axi id match neither free axi ids then error is set
+			if FREE_CHECK = false and AXI_ID_CHECK = FALSE then 
+                error <= '1';
+            end if;
         end if;
         
     end process;
     
+    -- VALID RSP PROCESS
     process(S_VALID_RSP)
-        if rising_edge(S_VALID_RSP)) then -- valid response transaction is ready
+    variable FREE_CHECK : boolean;
+    variable AXI_ID_CHECK : boolean;
+    begin
+        if rising_edge(S_VALID_RSP) then -- valid response transaction is ready
+            -- used to not considering the execution of the subsequent ifs
+            AXI_ID_CHECK := false; 
             
-        end if;
-        
-    end 
+            -- 1) find the corresponding axi id to remap
+            -- counter must not be 0
+            for i in 0 to POOL_SIZE-1 loop
+				if (registers_output(i)(VALUE_WIDTH-1 downto 0) = S_AXI_ID_RSP) -- REMAPPED AXI ID MATCH
+				and (registers_output(i)(2*VALUE_WIDTH+COUNTER_WIDTH-1 downto 2*VALUE_WIDTH) /= std_logic_vector(to_unsigned(0, COUNTER_WIDTH))) -- counter /= 0
+				and (AXI_ID_CHECK = false)  then
+				    AXI_ID_CHECK := true;
+                    -- decrement counter, remove saved axi id, output the original axi id (saved axi id)
+                    registers_input(i) <= 
+                        std_logic_vector(to_unsigned(0, COUNTER_WIDTH)) -- COUNTER = 0
+                        & std_logic_vector(to_unsigned(0, VALUE_WIDTH)) -- REMOVE SAVED_AXI_ID
+                        & registers_output(i) (VALUE_WIDTH-1 downto 0); -- AXI_ID_REMAPPED
+                    M_AXI_ID_RSP <= std_logic_vector(registers_output(i)(2*VALUE_WIDTH-1 downto VALUE_WIDTH)); -- output the original AXI ID
+                end if;
+			end loop;
+			
+			if AXI_ID_CHECK = false then
+			     error <= '1';
+			end if;
+        end if;        
+    end process;
 
 end Behavioral;
