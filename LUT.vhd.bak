@@ -25,7 +25,6 @@ use ieee.numeric_std.all;
 use ieee.std_logic_unsigned.all;
 
 -- LUT_FWD: this LUT takes in input the AXI ID and output another one, taken from a pool of values, to M_AXI_ID. 
--- The LUT is enabled only if the AxUSER input signal is the correct one, specified by a generic parameter
 -- A counter is incremented to know how many active transaction are using that Axi ID.
 -- When a response is received, the entry of the mapped AXI Id is updated: the counter is decremented.
 -- If there are no free Axi ID mapping, neither already active ones, an error is raised.
@@ -40,6 +39,7 @@ entity LUT is
     port ( 
 		clk	: in std_logic;
 		reset: in std_logic;
+		S_AxUSER: in std_logic_vector(15 downto 0);
         S_AXI_ID_REQ : in std_logic_vector(5 downto 0);
         S_AXI_ID_RSP : in std_logic_vector(5 downto 0);
         S_VALID_REQ: in std_logic; -- the valid signal of the request 
@@ -77,14 +77,12 @@ constant InitMappedAxiId : std_logic_vector(VALUE_WIDTH-1 downto 0) := (others =
 constant CounterMax: std_logic_vector(COUNTER_WIDTH-1 downto 0) := (others => '1');
 
 begin
-    -- init the LUT with a POOL of values between FIRST_POOL_VALUE and FIRST_POOL_VALUE + POOL_SIZE - 1
-    process(reset)
+    process
     begin
-        if reset = '1' then
-            for i in 0 to POOL_SIZE-1 loop
-              registers_input(i) <= InitCounter & InitMappedAxiId & std_logic_vector(to_unsigned(FIRST_POOL_VALUE + i, VALUE_WIDTH));
-            end loop;
-	    end if;
+        for i in 0 to POOL_SIZE-1 loop
+          registers_input(i) <= InitCounter & InitMappedAxiId & std_logic_vector(to_unsigned(FIRST_POOL_VALUE + i, VALUE_WIDTH));
+        end loop;
+	   wait;
 	end process;
     
 	registers_def : for i in (POOL_SIZE - 1) downto 0 generate
@@ -102,7 +100,9 @@ begin
     variable FREE_CHECK : boolean;
     variable AXI_ID_CHECK : boolean;
     begin
-        if rising_edge(S_VALID_REQ) then 
+        -- the write channel of the lut is activated on a valid transaction only if there is a match 
+        -- with the predefined AxUSER
+        if rising_edge(S_VALID_REQ) and S_AxUSER = AxUSER then 
             -- used to not considering the execution of the subsequent ifs
             AXI_ID_CHECK := false; 
             FREE_CHECK := false;
@@ -163,7 +163,9 @@ begin
     variable FREE_CHECK : boolean;
     variable AXI_ID_CHECK : boolean;
     begin
-        if rising_edge(S_VALID_RSP) then -- valid response transaction is ready
+        -- the read channel of the lut is activated on a valid transaction only if there is a match 
+        -- with the predefined AxUSER
+        if rising_edge(S_VALID_RSP) and S_AxUSER = AxUSER then -- valid response transaction is ready
             -- used to not considering the execution of the subsequent ifs
             AXI_ID_CHECK := false; 
             

@@ -28,7 +28,8 @@ use ieee.numeric_std.all;
 entity AXI_ID_Mapper is
     generic (
         NMaster : positive := 2;
-        POOL_SIZE_LUT: positive := 8
+        POOL_SIZE_LUT: positive := 8;
+        AXI_ID_WIDTH : positive := 6
     );
     port ( 
            clk	: in std_logic;
@@ -64,7 +65,6 @@ architecture Structural of AXI_ID_Mapper is
     port ( 
 		clk	: in std_logic;
 		reset: in std_logic;
-		S_AxUSER: in std_logic_vector(15 downto 0);
         S_AXI_ID_REQ : in std_logic_vector(5 downto 0);
         S_AXI_ID_RSP : in std_logic_vector(5 downto 0);
         S_VALID_REQ: in std_logic; -- the valid signal of the request 
@@ -75,8 +75,18 @@ architecture Structural of AXI_ID_Mapper is
     );
     end component;
     
-    -- signals
-    signal prev_AWID  : STD_LOGIC_VECTOR(5 downto 0);
+    -- valid signals
+    -- each one is connected to the VALID REQ input port of a LUT
+    signal valids_req_write: std_logic_vector(NMaster-1 downto 0) := (others => '0'); 
+    signal valids_req_read: std_logic_vector(NMaster-1 downto 0) := (others => '0');
+    -- each one is connected to the VALID RSP input port of a LUT
+    signal valids_rsp_write: std_logic_vector(NMaster-1 downto 0) := (others => '0'); 
+    signal valids_rsp_read: std_logic_vector(NMaster-1 downto 0) := (others => '0'); 
+    -- each AXI_ID_WIDTH bits are connected to the M_AXI_ID port of the LUT
+    signal axi_ids_req_write: std_logic_vector( (NMaster*AXI_ID_WIDTH)-1 downto 0) := (others => '0'); 
+    signal axi_ids_req_read: std_logic_vector( (NMaster*AXI_ID_WIDTH)-1 downto 0) := (others => '0');
+    signal axi_ids_rsp_write: std_logic_vector( (NMaster*AXI_ID_WIDTH)-1 downto 0) := (others => '0');
+    signal axi_ids_rsp_read: std_logic_vector( (NMaster*AXI_ID_WIDTH)-1 downto 0) := (others => '0');
 begin
     -- each master has its own write and read LUT
     -- define the initial values to not overlap between the LUTs
@@ -88,18 +98,18 @@ begin
         generic map (
             AxUSER => std_logic_vector(to_unsigned(i, 16)), -- 16 is the width of the AxUser signal
             POOL_SIZE => POOL_SIZE_LUT,
-            FIRST_POOL_VALUE => i*POOL_SIZE_LUT
+            FIRST_POOL_VALUE => i*POOL_SIZE_LUT,
+            VALUE_WIDTH => AXI_ID_WIDTH
         )
 		port map (
             clk => clk,
             reset => reset,
-            S_AxUSER => S_AWUSER, -- master id of the write transaction
             S_AXI_ID_REQ => S_AWID, -- incoming axi id request
             S_AXI_ID_RSP => S_BID, -- incoming axi id response
-            S_VALID_REQ  => S_AWVALID, -- the valid signal of the request 
-            S_VALID_RSP  => S_BVALID, -- the valid signal of the response
-            M_AXI_ID_REQ => M_AWID, -- the output of the LUT with the remapped axi id for the request
-            M_AXI_ID_RSP => M_BID, -- the output of the LUT with the original axi id for the response
+            S_VALID_REQ  => valids_req_write(i), -- the valid signal of the request 
+            S_VALID_RSP  => valids_rsp_write(i), -- the valid signal of the response
+            M_AXI_ID_REQ => axi_ids_req_write( ((i+1)*AXI_ID_WIDTH-1) downto (i)*AXI_ID_WIDTH ), -- the output of the LUT with the remapped axi id for the request
+            M_AXI_ID_RSP => axi_ids_rsp_write( ((i+1)*AXI_ID_WIDTH-1) downto (i)*AXI_ID_WIDTH ), -- the output of the LUT with the original axi id for the response
             error => error
 		);
 		
@@ -108,20 +118,46 @@ begin
         generic map (
             AxUSER => std_logic_vector(to_unsigned(i, 16)), -- 16 is the width of the AxUser signal
             POOL_SIZE => POOL_SIZE_LUT,
-            FIRST_POOL_VALUE => i*POOL_SIZE_LUT
+            FIRST_POOL_VALUE => i*POOL_SIZE_LUT,
+            VALUE_WIDTH => AXI_ID_WIDTH
         )
 		port map (
             clk => clk,
             reset => reset,
-            S_AxUSER => S_ARUSER, -- master id of the write transaction
             S_AXI_ID_REQ => S_ARID, -- incoming axi id request
             S_AXI_ID_RSP => S_RID, -- incoming axi id response
-            S_VALID_REQ  => S_ARVALID, -- the valid signal of the request 
-            S_VALID_RSP  => S_RVALID, -- the valid signal of the response
-            M_AXI_ID_REQ => M_ARID, -- the output of the LUT with the remapped axi id for the request
-            M_AXI_ID_RSP => M_RID, -- the output of the LUT with the original axi id for the response
+            S_VALID_REQ  => valids_req_read(i), -- the valid signal of the request 
+            S_VALID_RSP  => valids_rsp_read(i), -- the valid signal of the response
+            M_AXI_ID_REQ => axi_ids_req_read( ((i+1)*AXI_ID_WIDTH-1) downto (i)*AXI_ID_WIDTH ), -- the output of the LUT with the remapped axi id for the request
+            M_AXI_ID_RSP => axi_ids_rsp_read( ((i+1)*AXI_ID_WIDTH-1) downto (i)*AXI_ID_WIDTH ), -- the output of the LUT with the original axi id for the response
             error => error
 		);
     end generate lut_def;
+    
+    -- WRITE CHANNEL
+    -- request channel
+    process(S_AWVALID)
+    begin
+        -- which to connect for mapping? Depend to AWUSER
+        valids_req_write(natural(to_integer(unsigned(S_AWUSER)))) <= S_AWVALID;
+    end process;
+    
+    -- response channel
+    process(S_BID)
+    begin
+        -- which to connect for inverse mapping?
+        for i in (NMaster - 1) downto 0 loop
+            --if 
+            --(unsigned(i*POOL_SIZE_LUT + POOL_SIZE_LUT - 1) >= unsigned(S_AWID)) 
+            --and (unsigned(i*POOL_SIZE_LUT) <= unsigned(S_AWID)) then
+            if (to_unsigned(i*POOL_SIZE_LUT + POOL_SIZE_LUT - 1, 8) >= unsigned(S_AWID)) 
+            and (unsigned(S_AWID)) >= (to_unsigned(i*POOL_SIZE_LUT, 8)) then
+                valids_rsp_write(i) <= S_BVALID;
+            end if;
+        end loop;
+    end process;
+    
+    -- READ CHANNEL
+    
 
 end Structural;

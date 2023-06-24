@@ -1,0 +1,73 @@
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.all;
+use IEEE.std_logic_unsigned.all;
+use IEEE.NUMERIC_STD.all;
+
+entity LUT_tb is
+end LUT_tb;
+
+architecture beh of LUT_tb is
+
+	--const def
+	constant clk_period	: time := 100 ns;
+	constant NBit : positive := 8;
+
+	--component dut
+	component LUT
+		generic( NBit : positive := 8);
+		
+		port( 
+			clk     : in std_logic;
+			a_rst_n : in std_logic;
+			en      : in std_logic;
+			d       : in std_logic_vector(NBit - 1 downto 0);
+			q       : out std_logic_vector(NBit - 1 downto 0)
+		);
+	end component;
+
+	--signal of testbench
+	signal clk_ext	: std_logic := '0' ;
+	signal rst_ext 	: std_logic := '0' ;
+	signal en_ext	: std_logic := '1';
+	signal d_ext	: std_logic_vector(NBit-1 downto 0) := (others => '0');
+	signal q_ext	: std_logic_vector(NBit-1 downto 0);
+	signal testing	: boolean := true ;
+	
+	--testbench
+	begin
+		clk_ext <= not clk_ext after clk_period/2 when testing else '0';
+		
+		--component instantiation
+		dut: DFF_N
+		generic map(
+			NBit => NBit
+		)
+		port map(
+			clk => clk_ext,
+			a_rst_n => rst_ext,
+			en => en_ext,
+			d => d_ext,
+			q => q_ext
+		);
+		
+		stimulus: process
+		begin
+			rst_ext <= '1';
+			wait for 30 ns;
+			rst_ext <= '0';
+			wait until rising_edge(clk_ext);
+			d_ext <= b"00001000";
+			wait until rising_edge(clk_ext);
+			d_ext <= b"00001010";
+			wait until rising_edge(clk_ext);
+			d_ext <= b"00001001";
+			wait until rising_edge(clk_ext);
+			rst_ext <= '0';
+			wait until rising_edge(clk_ext);
+			testing <= false; 
+		end process;
+end beh;
+	
+	
+	
