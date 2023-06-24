@@ -1,0 +1,4 @@
+-crea uno zip da project > archive...
+-lo passi sulla shared folder e lo metti in vivado_workspace
+-lo estrai con unzip
+-da vivado fai open project e apri il file .xpr
