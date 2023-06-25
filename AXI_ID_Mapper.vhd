@@ -56,7 +56,6 @@ architecture Structural of AXI_ID_Mapper is
     -- components
     component LUT is
 	generic(
-	    AxUSER: std_logic_vector(15 downto 0);
 		FIRST_POOL_VALUE: integer := 0; -- the first value of the pool
 		POOL_SIZE: integer := 8; -- the pool size
 		VALUE_WIDTH: integer := 6; -- value width of the output axi id
@@ -96,7 +95,6 @@ begin
     -- WRITE CHANNEL
         write_lut_def: LUT
         generic map (
-            AxUSER => std_logic_vector(to_unsigned(i, 16)), -- 16 is the width of the AxUser signal
             POOL_SIZE => POOL_SIZE_LUT,
             FIRST_POOL_VALUE => i*POOL_SIZE_LUT,
             VALUE_WIDTH => AXI_ID_WIDTH
@@ -116,7 +114,6 @@ begin
     -- READ CHANNEL
         read_lut_def: LUT
         generic map (
-            AxUSER => std_logic_vector(to_unsigned(i, 16)), -- 16 is the width of the AxUser signal
             POOL_SIZE => POOL_SIZE_LUT,
             FIRST_POOL_VALUE => i*POOL_SIZE_LUT,
             VALUE_WIDTH => AXI_ID_WIDTH
@@ -150,14 +147,34 @@ begin
             --if 
             --(unsigned(i*POOL_SIZE_LUT + POOL_SIZE_LUT - 1) >= unsigned(S_AWID)) 
             --and (unsigned(i*POOL_SIZE_LUT) <= unsigned(S_AWID)) then
-            if (to_unsigned(i*POOL_SIZE_LUT + POOL_SIZE_LUT - 1, 8) >= unsigned(S_AWID)) 
-            and (unsigned(S_AWID)) >= (to_unsigned(i*POOL_SIZE_LUT, 8)) then
+            if (to_unsigned(i*POOL_SIZE_LUT + POOL_SIZE_LUT - 1, 8) >= unsigned(S_BID)) 
+            and (unsigned(S_BID)) >= (to_unsigned(i*POOL_SIZE_LUT, 8)) then
                 valids_rsp_write(i) <= S_BVALID;
             end if;
         end loop;
     end process;
     
     -- READ CHANNEL
+        -- request channel
+    process(S_ARVALID)
+    begin
+        -- which to connect for mapping? Depend to AWUSER
+        valids_req_read(natural(to_integer(unsigned(S_ARUSER)))) <= S_ARVALID;
+    end process;
     
+    -- response channel
+    process(S_RID)
+    begin
+        -- which to connect for inverse mapping?
+        for i in (NMaster - 1) downto 0 loop
+            --if 
+            --(unsigned(i*POOL_SIZE_LUT + POOL_SIZE_LUT - 1) >= unsigned(S_AWID)) 
+            --and (unsigned(i*POOL_SIZE_LUT) <= unsigned(S_AWID)) then
+            if (to_unsigned(i*POOL_SIZE_LUT + POOL_SIZE_LUT - 1, 8) >= unsigned(S_RID)) 
+            and (unsigned(S_RID)) >= (to_unsigned(i*POOL_SIZE_LUT, 8)) then
+                valids_rsp_read(i) <= S_RVALID;
+            end if;
+        end loop;
+    end process;
 
 end Structural;

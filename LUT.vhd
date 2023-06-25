@@ -31,7 +31,6 @@ use ieee.std_logic_unsigned.all;
 -- If there are no free Axi ID mapping, neither already active ones, an error is raised.
 entity LUT is
 	generic(
-	    AxUSER: std_logic_vector(15 downto 0); -- work as an enable for the LUT
 		FIRST_POOL_VALUE: natural := 0; -- the first value of the pool, the next depends are generated until POOL_SIZE-1
 		POOL_SIZE: positive := 8; -- the pool size
 		VALUE_WIDTH: positive := 6; -- value width of the output axi id
@@ -67,6 +66,7 @@ component NBitRegister is
 end component;
 
 -- signals
+-- array of signals to the registers keeping the mappings
 type t_signal_array is array (0 to POOL_SIZE-1) of std_logic_vector(COUNTER_WIDTH+(2*VALUE_WIDTH)-1 downto 0);
 signal registers_input  : t_signal_array;
 signal registers_output  : t_signal_array;
@@ -77,25 +77,32 @@ constant InitMappedAxiId : std_logic_vector(VALUE_WIDTH-1 downto 0) := (others =
 constant CounterMax: std_logic_vector(COUNTER_WIDTH-1 downto 0) := (others => '1');
 
 begin
-    -- init the LUT with a POOL of values between FIRST_POOL_VALUE and FIRST_POOL_VALUE + POOL_SIZE - 1
-    process(reset)
-    begin
-        if reset = '1' then
-            for i in 0 to POOL_SIZE-1 loop
-              registers_input(i) <= InitCounter & InitMappedAxiId & std_logic_vector(to_unsigned(FIRST_POOL_VALUE + i, VALUE_WIDTH));
-            end loop;
-	    end if;
-	end process;
-    
+    -- registers definition
 	registers_def : for i in (POOL_SIZE - 1) downto 0 generate
 		single_register_def: NBitRegister
-		generic map (N => VALUE_WIDTH)
+		generic map (N => COUNTER_WIDTH+(2*VALUE_WIDTH)) -- COUNTER | ORIGINAL_AXI_ID | REMAPPED_AXI_ID
 		port map ( 	clk => clk,
 		            data_in => registers_input(i),
 					reset => reset,
 					q => registers_output(i)
 		);
 	end generate registers_def;
+	
+	-- init the LUT with a POOL of values between FIRST_POOL_VALUE and FIRST_POOL_VALUE + POOL_SIZE - 1
+    process(reset)
+    begin
+        if reset = '1' then
+            for i in 0 to POOL_SIZE-1 loop
+              registers_input(i) <= InitCounter & InitMappedAxiId & std_logic_vector(to_unsigned(FIRST_POOL_VALUE + i, VALUE_WIDTH));
+            end loop;
+        elsif rising_edge(clk) then
+            for i in 0 to POOL_SIZE-1 loop
+                registers_input(i) <= registers_input(i);
+            end loop;
+	    end if;
+	end process;
+	
+	-- add port for registers
 	
 	-- VALID_REQ PROCESS
     process(S_VALID_REQ)
@@ -151,7 +158,7 @@ begin
 			end loop;
 			
 			-- if the research indicates no axi id match neither free axi ids then error is set
-			if FREE_CHECK = false and AXI_ID_CHECK = FALSE then 
+			if FREE_CHECK = false and AXI_ID_CHECK = false then 
                 error <= '1';
             end if;
         end if;

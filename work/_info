@@ -9,7 +9,7 @@ z2
 cModel Technology
 dC:/intelFPGA/18.1
 Eaxi_id_mapper
-Z0 w1687625165
+Z0 w1687701056
 Z1 DPx4 ieee 11 numeric_std 0 22 :ASDNFgHXf_ih3J@9F3Ze1
 Z2 DPx4 ieee 15 std_logic_arith 0 22 [G314=:2zXJ`VORJe1J@Z1
 Z3 DPx4 ieee 18 std_logic_unsigned 0 22 ;eZjO2D4ZDz<]0>8AL<ne1
@@ -24,42 +24,42 @@ VYYkDS:Ca6E]e<jzNTi9@:0
 !s100 ZeY]lJ[HPJ_]4IgJL3CTI3
 Z9 OV;C;10.5b;63
 32
-!s110 1687625194
+Z10 !s110 1687703551
 !i10b 1
-!s108 1687625194.000000
-Z10 !s90 -reportprogress|300|-work|work|-2002|-explicit|-stats=none|C:/Users/nikos/Documents/GitHub/AxiIDMapper/AXI_ID_Mapper.vhd|
-!s107 C:/Users/nikos/Documents/GitHub/AxiIDMapper/AXI_ID_Mapper.vhd|
+Z11 !s108 1687703551.000000
+Z12 !s90 -reportprogress|300|-work|work|-2002|-explicit|-stats=none|C:/Users/nikos/Documents/GitHub/AxiIDMapper/AXI_ID_Mapper.vhd|
+Z13 !s107 C:/Users/nikos/Documents/GitHub/AxiIDMapper/AXI_ID_Mapper.vhd|
 !i113 1
-Z11 o-work work -2002 -explicit
-Z12 tExplicit 1 CvgOpt 0
+Z14 o-work work -2002 -explicit
+Z15 tExplicit 1 CvgOpt 0
 Astructural
 R1
 R2
 R3
 R4
 R5
-Z13 DEx4 work 13 axi_id_mapper 0 22 <h0e1mM1TGV?P_X`=[_Eh0
-l80
-L54
-V][z2XkaMdDDbC^4chaG`C2
-!s100 ZWBI2U;fKah<@M^WmoUZS2
+DEx4 work 13 axi_id_mapper 0 22 YYkDS:Ca6E]e<jzNTi9@:0
+l89
+L55
+VS=4E]lQnKKEje4gWj1B5T1
+!s100 d48QVYIF1^72FhFPM8?n80
 R9
 32
-!s110 1687618492
-!i10b 1
-!s108 1687618492.000000
 R10
-!s107 C:/Users/nikos/Documents/GitHub/AxiIDMapper/AXI_ID_Mapper.vhd|
-!i113 1
+!i10b 1
 R11
 R12
+R13
+!i113 1
+R14
+R15
 Abehavioral
 R1
 R2
 R3
 R4
 R5
-R13
+DEx4 work 13 axi_id_mapper 0 22 <h0e1mM1TGV?P_X`=[_Eh0
 l80
 L54
 VXb8M1S]E2KFSX;:KSH5^01
@@ -69,78 +69,123 @@ R9
 !s110 1687618086
 !i10b 1
 !s108 1687618086.000000
-R10
-!s107 C:/Users/nikos/Documents/GitHub/AxiIDMapper/AXI_ID_Mapper.vhd|
-!i113 1
-R11
 R12
+R13
+!i113 1
+R14
+R15
 w1687618073
 Elut
-Z14 w1687624895
+Z16 w1687703519
 R2
 R3
 R1
 R4
 R5
 R6
-Z15 8C:\Users\nikos\Documents\GitHub\AxiIDMapper\LUT.vhd
-Z16 FC:\Users\nikos\Documents\GitHub\AxiIDMapper\LUT.vhd
+Z17 8C:/Users/nikos/Documents/GitHub/AxiIDMapper/LUT.vhd
+Z18 FC:/Users/nikos/Documents/GitHub/AxiIDMapper/LUT.vhd
 l0
 L32
-VK_<j4X@oSHcWgf4[iQ6BT3
-!s100 oZ6AKL<=@^1]?ll1:2?Zc1
+VI?9oo2@3[JQfm_O3ETjHW1
+!s100 Glj=^DHb1M:SSJN6WgaPH2
 R9
 32
-Z17 !s110 1687625189
+R10
 !i10b 1
-Z18 !s108 1687625189.000000
-Z19 !s90 -reportprogress|300|-work|work|-2002|-explicit|-stats=none|C:\Users\nikos\Documents\GitHub\AxiIDMapper\LUT.vhd|
-Z20 !s107 C:\Users\nikos\Documents\GitHub\AxiIDMapper\LUT.vhd|
-!i113 1
 R11
-R12
+Z19 !s90 -reportprogress|300|-work|work|-2002|-explicit|-stats=none|C:/Users/nikos/Documents/GitHub/AxiIDMapper/LUT.vhd|
+Z20 !s107 C:/Users/nikos/Documents/GitHub/AxiIDMapper/LUT.vhd|
+!i113 1
+R14
+R15
 Abehavioral
 R2
 R3
 R1
 R4
 R5
-DEx4 work 3 lut 0 22 K_<j4X@oSHcWgf4[iQ6BT3
+DEx4 work 3 lut 0 22 I?9oo2@3[JQfm_O3ETjHW1
 l79
-L53
-VZK<MS<Rc?IO4NNC0d9oE71
-!s100 >EIg4z`XCEG;4`HJ_=7jX0
+L52
+VZB0ch:zT`B6lUchBFe;741
+!s100 n6_AGZM5`zFUD2f3bUT??0
 R9
 32
-R17
+R10
 !i10b 1
-R18
+R11
 R19
 R20
 !i113 1
-R11
-R12
-Enbitregister
-Z21 w1687592468
+R14
+R15
+Elut_tb
+Z21 w1687702231
+R1
+R2
+R3
 R4
 R5
 R6
-Z22 8C:/Users/nikos/Documents/GitHub/AxiIDMapper/NBitRegister.vhd
-Z23 FC:/Users/nikos/Documents/GitHub/AxiIDMapper/NBitRegister.vhd
+Z22 8C:/Users/nikos/Documents/GitHub/AxiIDMapper/tb/LUT_tb.vhd
+Z23 FC:/Users/nikos/Documents/GitHub/AxiIDMapper/tb/LUT_tb.vhd
+l0
+L7
+V:SR>=28<z8lX^i0l3BH=G2
+!s100 IX7ggBm2eW^7_^>CI5Ali3
+R9
+32
+R10
+!i10b 1
+R11
+Z24 !s90 -reportprogress|300|-work|work|-2002|-explicit|-stats=none|C:/Users/nikos/Documents/GitHub/AxiIDMapper/tb/LUT_tb.vhd|
+Z25 !s107 C:/Users/nikos/Documents/GitHub/AxiIDMapper/tb/LUT_tb.vhd|
+!i113 1
+R14
+R15
+Abeh
+R1
+R2
+R3
+R4
+R5
+Z26 DEx4 work 6 lut_tb 0 22 :SR>=28<z8lX^i0l3BH=G2
+l53
+L10
+Z27 VZ]4MIaMT`oXKkBTnkFPCG0
+Z28 !s100 AkK47>:ZWZ0MlFLJ`ElCG3
+R9
+32
+R10
+!i10b 1
+R11
+R24
+R25
+!i113 1
+R14
+R15
+Enbitregister
+Z29 w1687592468
+R4
+R5
+R6
+Z30 8C:/Users/nikos/Documents/GitHub/AxiIDMapper/NBitRegister.vhd
+Z31 FC:/Users/nikos/Documents/GitHub/AxiIDMapper/NBitRegister.vhd
 l0
 L4
 V>MaV09`8XVoC`Ume4ZFmZ2
 !s100 U>6KA;<fcJY[OHU70YR>b3
 R9
 32
-Z24 !s110 1687618011
+R10
 !i10b 1
-Z25 !s108 1687618011.000000
-Z26 !s90 -reportprogress|300|-work|work|-2002|-explicit|-stats=none|C:/Users/nikos/Documents/GitHub/AxiIDMapper/NBitRegister.vhd|
-Z27 !s107 C:/Users/nikos/Documents/GitHub/AxiIDMapper/NBitRegister.vhd|
-!i113 1
 R11
-R12
+Z32 !s90 -reportprogress|300|-work|work|-2002|-explicit|-stats=none|C:/Users/nikos/Documents/GitHub/AxiIDMapper/NBitRegister.vhd|
+Z33 !s107 C:/Users/nikos/Documents/GitHub/AxiIDMapper/NBitRegister.vhd|
+!i113 1
+R14
+R15
 Abehavioral
 R4
 R5
@@ -151,11 +196,11 @@ V]:7_Rg1d?0EC?`GcfCk0h3
 !s100 3?RY=hcbakPELIMJ51K<d1
 R9
 32
-R24
+R10
 !i10b 1
-R25
-R26
-R27
-!i113 1
 R11
-R12
+R32
+R33
+!i113 1
+R14
+R15
