@@ -11,7 +11,6 @@ architecture beh of LUT_tb is
 
 	--const def
 	constant clk_period	: time := 100 ns;
-	constant new_transaction_period : time := 500 ns; -- the period between a new valid transaction
 	constant NBit : positive := 8;
 
 	--component dut
@@ -87,6 +86,7 @@ architecture beh of LUT_tb is
 			S_VALID_RSP_ext <= '1'; -- should remap to 1000000
 			wait for 100 ns;
 			S_VALID_RSP_ext <= '0';
+			wait for 3000 ns;
 			testing <= false; 
 		end process;
 end beh;

@@ -110,6 +110,7 @@ begin
             M_AXI_ID_RSP => axi_ids_rsp_write( ((i+1)*AXI_ID_WIDTH-1) downto (i)*AXI_ID_WIDTH ), -- the output of the LUT with the original axi id for the response
             error => error
 		);
+	
 		
     -- READ CHANNEL
         read_lut_def: LUT
@@ -132,7 +133,6 @@ begin
     end generate lut_def;
     
     -- WRITE CHANNEL
-    -- request channel
     process(S_AWVALID)
     begin
         -- which to connect for mapping? Depend to AWUSER
@@ -144,11 +144,8 @@ begin
     begin
         -- which to connect for inverse mapping?
         for i in (NMaster - 1) downto 0 loop
-            --if 
-            --(unsigned(i*POOL_SIZE_LUT + POOL_SIZE_LUT - 1) >= unsigned(S_AWID)) 
-            --and (unsigned(i*POOL_SIZE_LUT) <= unsigned(S_AWID)) then
-            if (to_unsigned(i*POOL_SIZE_LUT + POOL_SIZE_LUT - 1, 8) >= unsigned(S_BID)) 
-            and (unsigned(S_BID)) >= (to_unsigned(i*POOL_SIZE_LUT, 8)) then
+            if (to_unsigned(i*POOL_SIZE_LUT + POOL_SIZE_LUT - 1, AXI_ID_WIDTH) >= unsigned(S_BID)) 
+            and (unsigned(S_BID)) >= (to_unsigned(i*POOL_SIZE_LUT, AXI_ID_WIDTH)) then
                 valids_rsp_write(i) <= S_BVALID;
             end if;
         end loop;
@@ -158,7 +155,7 @@ begin
         -- request channel
     process(S_ARVALID)
     begin
-        -- which to connect for mapping? Depend to AWUSER
+        -- which to connect for mapping? Depend to ARUSER
         valids_req_read(natural(to_integer(unsigned(S_ARUSER)))) <= S_ARVALID;
     end process;
     
@@ -167,11 +164,8 @@ begin
     begin
         -- which to connect for inverse mapping?
         for i in (NMaster - 1) downto 0 loop
-            --if 
-            --(unsigned(i*POOL_SIZE_LUT + POOL_SIZE_LUT - 1) >= unsigned(S_AWID)) 
-            --and (unsigned(i*POOL_SIZE_LUT) <= unsigned(S_AWID)) then
-            if (to_unsigned(i*POOL_SIZE_LUT + POOL_SIZE_LUT - 1, 8) >= unsigned(S_RID)) 
-            and (unsigned(S_RID)) >= (to_unsigned(i*POOL_SIZE_LUT, 8)) then
+            if (to_unsigned(i*POOL_SIZE_LUT + POOL_SIZE_LUT - 1, AXI_ID_WIDTH) >= unsigned(S_RID)) 
+            and (unsigned(S_RID)) >= (to_unsigned(i*POOL_SIZE_LUT, AXI_ID_WIDTH)) then
                 valids_rsp_read(i) <= S_RVALID;
             end if;
         end loop;
