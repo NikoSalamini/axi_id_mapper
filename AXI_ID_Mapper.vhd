@@ -58,7 +58,7 @@ architecture Structural of AXI_ID_Mapper is
 	generic(
 		FIRST_POOL_VALUE: integer := 0; -- the first value of the pool
 		POOL_SIZE: integer := 8; -- the pool size
-		VALUE_WIDTH: integer := 6; -- value width of the output axi id
+		AXI_ID_WIDTH: integer := 6; -- value width of the output axi id
 		COUNTER_WIDTH: integer := 2 -- counter of active transactions with the same axi id
 	);
     port ( 
@@ -70,12 +70,15 @@ architecture Structural of AXI_ID_Mapper is
         S_VALID_RSP: in std_logic; -- the valid signal of the response
         M_AXI_ID_REQ: out std_logic_vector(5 downto 0);
         M_AXI_ID_RSP: out std_logic_vector(5 downto 0);
+        M_AXI_VALID_REQ: out std_logic := '0';
+        M_AXI_VALID_RSP: out std_logic := '0';
         error: out std_logic := '0'
     );
     end component;
     
     -- valid signals
     -- each one is connected to the VALID REQ input port of a LUT
+    -- only one lut is activated depending on awuser
     signal valids_req_write: std_logic_vector(NMaster-1 downto 0) := (others => '0'); 
     signal valids_req_read: std_logic_vector(NMaster-1 downto 0) := (others => '0');
     -- each one is connected to the VALID RSP input port of a LUT
@@ -93,11 +96,11 @@ begin
     lut_def: for i in (NMaster - 1) downto 0 generate
     
     -- WRITE CHANNEL
-        write_lut_def: LUT
+    write_lut_def: LUT
         generic map (
             POOL_SIZE => POOL_SIZE_LUT,
             FIRST_POOL_VALUE => i*POOL_SIZE_LUT,
-            VALUE_WIDTH => AXI_ID_WIDTH
+            AXI_ID_WIDTH => AXI_ID_WIDTH
         )
 		port map (
             clk => clk,
@@ -113,11 +116,11 @@ begin
 	
 		
     -- READ CHANNEL
-        read_lut_def: LUT
+    read_lut_def: LUT
         generic map (
             POOL_SIZE => POOL_SIZE_LUT,
             FIRST_POOL_VALUE => i*POOL_SIZE_LUT,
-            VALUE_WIDTH => AXI_ID_WIDTH
+            AXI_ID_WIDTH => AXI_ID_WIDTH
         )
 		port map (
             clk => clk,
@@ -131,6 +134,10 @@ begin
             error => error
 		);
     end generate lut_def;
+    
+    --NEED A MULTIPLEXER TO CONNECT ONE OF THE OUTPUT OF THE LUT TO THE OUTPUT
+    -- M_AXI_ID_REQ <= 
+    -- M_AXI_ID_RSP <= 
     
     -- WRITE CHANNEL
     process(S_AWVALID)

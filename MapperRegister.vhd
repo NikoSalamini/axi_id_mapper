@@ -33,11 +33,11 @@ begin
                 if cmd = '0' then
                     counter_value <= counter_value - 1;
                 elsif cmd = '1' then
-                    counter_value <= counter_value - 1;
+                    counter_value <= counter_value + 1;
                 end if;
                 axi_id_saved <= axi_id;
             end if;
-            -- counter_value <= counter_value;
+            counter_value <= counter_value;
         end if;
     end process;
     

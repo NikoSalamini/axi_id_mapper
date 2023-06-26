@@ -49,6 +49,8 @@ entity EnableMapper is
         M_AXI_ID_RSP: out std_logic_vector(AXI_ID_WIDTH-1 downto 0);
         M_AXI_VALID_REQ: out std_logic := '0';
         M_AXI_VALID_RSP: out std_logic := '0';
+        REGISTERS_CMD: out std_logic_vector(POOL_SIZE-1 downto 0);
+        ACTIVATE_REGISTERS: out std_logic_vector(POOL_SIZE-1 downto 0);
         error: out std_logic := '0'
     );
 end EnableMapper;
@@ -73,35 +75,20 @@ component MapperRegister is
 	);
 end component;
 
--- signals
--- array of signals to the registers keeping the mappings
-type t_signal_array is array (0 to POOL_SIZE-1) of std_logic_vector(COUNTER_WIDTH+(2*AXI_ID_WIDTH)-1 downto 0);
-signal registers_input  : t_signal_array;
-signal registers_output  : t_signal_array;
-signal reset_input  : t_signal_array;
-signal en_input : std_logic_vector(POOL_SIZE-1 downto 0) := (others => '0');
-signal activate_register: std_logic_vector(POOL_SIZE-1 downto 0);
-signal register_cmd: std_logic_vector(POOL_SIZE-1 downto 0);
-
 -- constants
 -- placeholders to access i-th field of SAVED_MAPS
 constant EntryRange: natural := COUNTER_WIDTH+(2*AXI_ID_WIDTH);
 constant CounterMax: std_logic_vector(COUNTER_WIDTH-1 downto 0) := (others => '1');
 
 begin
-    -- MapperRegisters definition
-	registers_def : for i in (POOL_SIZE - 1) downto 0 generate
-		single_register_def: MapperRegister
-		-- AXI ID REMAPPINGS are incremental
-		generic map (AXI_ID_MAP => std_logic_vector(to_unsigned(FIRST_POOL_VALUE + i, AXI_ID_WIDTH))) 
-		port map ( 	clk => clk,
-		            reset => reset,
-		            en => activate_register(i),
-		            cmd => register_cmd(i),
-		            axi_id => S_AXI_ID_REQ,
-					q => registers_output(i)
-		);
-	end generate registers_def;
+	-- M_AXI_VALID_REQ change to 0
+	-- M_AXI_VALID_REQ is set to 1 only when the remapping is done
+	process (S_VALID_REQ)
+	begin
+	   if falling_edge(S_VALID_REQ) then
+	       M_AXI_VALID_REQ <= '0';
+	   end if;
+	end process;
 	
 	-- VALID_REQ PROCESS
     process(clk, S_VALID_REQ)
@@ -110,47 +97,53 @@ begin
     begin
         AXI_ID_CHECK := false; 
         FREE_CHECK := false;
-        if S_VALID_REQ = '1' then 
+        if rising_edge(S_VALID_REQ) then 
             -- used to not considering the execution of the subsequent ifs
             
             -- 1) check if there is axi id match
             -- -counter must be >= 1 to be in use
-            -- -if the counter is max, all one, an error is raised indicating that the maximum number of transaction for an axi id
+            -- -if the counter is max, all 1s, an error is raised indicating that the maximum number of transaction for an axi id
             -- has been reached
             -- entry range: COUNTER_WIDTH+(2*AXI_ID_WIDTH)
             for i in 0 to POOL_SIZE-1 loop
                 if 
-                SAVED_MAPS( (i+1)*EntryRange-COUNTER_WIDTH-1 downto i*EntryRange + AXI_ID_WIDTH) = S_AXI_ID_REQ and
-                SAVED_MAPS( (i+1)*EntryRange-1 downto i*EntryRange+2*AXI_ID_WIDTH) >= std_logic_vector(to_unsigned(1, COUNTER_WIDTH)) and
+                SAVED_MAPS( (i+1)*EntryRange-COUNTER_WIDTH-1 downto i*EntryRange + AXI_ID_WIDTH) = S_AXI_ID_REQ and -- AXI_ID_SAVED = S_AXI_ID_REQ?
+                SAVED_MAPS( (i+1)*EntryRange-1 downto i*EntryRange+2*AXI_ID_WIDTH) >= std_logic_vector(to_unsigned(1, COUNTER_WIDTH)) and -- COUNTER >= 1?
                 (AXI_ID_CHECK = false) then
                     -- axi id match
 				   AXI_ID_CHECK := true;
 				   
-				   if SAVED_MAPS( (i+1)*EntryRange-1 downto i*EntryRange+2*AXI_ID_WIDTH) = CounterMax then
+				   if SAVED_MAPS( (i+1)*EntryRange-1 downto i*EntryRange+2*AXI_ID_WIDTH) = CounterMax then -- COUNTER = COUNTERMAX?
 				        error <= '1';
 				   else
-                        -- increment counter, save the mapped AXI ID, output the remapped AXI ID        
-				        -- enable register
-				        register_cmd(i) <= '1';
-				        activate_register(i) <= '1'; 
+                        -- increment counter, enable register, save the mapped AXI ID, output the remapped AXI ID     
+                        -- the next clock the registers will be updated   
+				        REGISTERS_CMD(i) <= '1'; 
+				        ACTIVATE_REGISTERS(i) <= '1'; 
+				        -- this should be cleared when the masters put it to 0
+				        M_AXI_VALID_REQ <= '1';
+				        -- the axi id value will be kept till the next transaction
 				        M_AXI_ID_REQ <= SAVED_MAPS((i+1)*EntryRange-COUNTER_WIDTH-AXI_ID_WIDTH-1 downto i*EntryRange); --output the remapped axi_id
                    end if; 
 				end if;
-			end loop;
+			end loop;   
             
             -- 2) if no AXI_ID match, check if there is a free axi id  
             -- -check for entries with counter = 0
             -- -if there are no FREE AXI IDs generate error  
 			for i in 0 to POOL_SIZE-1 loop
-			    if SAVED_MAPS( (i+1)*EntryRange-1 downto i*EntryRange+2*AXI_ID_WIDTH) = std_logic_vector(to_unsigned(0, COUNTER_WIDTH)) and 
+			    if SAVED_MAPS( (i+1)*EntryRange-1 downto i*EntryRange+2*AXI_ID_WIDTH) = std_logic_vector(to_unsigned(0, COUNTER_WIDTH)) and  -- COUNTER = 0?
 				(FREE_CHECK = false) and
 				(AXI_ID_CHECK = false) then
+				    -- free check
                     FREE_CHECK := true;                  
-					-- increment counter, save the mapped AXI ID, output the remapped AXI ID
-					-- enable register
-				        register_cmd(i) <= '1';
-				        activate_register(i) <= '1'; 
-					    M_AXI_ID_REQ <= SAVED_MAPS((i+1)*EntryRange-COUNTER_WIDTH-AXI_ID_WIDTH-1 downto i*EntryRange); --output the remapped axi_id
+                    -- increment counter, enable register, save the mapped AXI ID, output the remapped AXI ID   
+                    REGISTERS_CMD(i) <= '1';
+                    ACTIVATE_REGISTERS(i) <= '1'; 
+                    -- this should be cleared when the masters put it to 0
+                    M_AXI_VALID_REQ <= '1';
+                    -- the axi id value will be kept till the next transaction
+                    M_AXI_ID_REQ <= SAVED_MAPS((i+1)*EntryRange-COUNTER_WIDTH-AXI_ID_WIDTH-1 downto i*EntryRange); --output the remapped axi_id
 				end if;
 			end loop;
 			
@@ -160,40 +153,53 @@ begin
             end if;
         elsif rising_edge(clk) then
             for i in 0 to POOL_SIZE loop
-                register_cmd(i) <= '0';
-                activate_register(i) <= '0';
+                REGISTERS_CMD(i) <= '0';
+                ACTIVATE_REGISTERS(i) <= '0';
             end loop;
         end if;
-        
-        
-        
     end process;
     
+    -- same thing for the response
+    -- slaves set this signal
+	process (S_VALID_RSP)
+	begin
+	   if falling_edge(S_VALID_RSP) then
+	       M_AXI_VALID_RSP <= '0';
+	   end if;
+	end process;
+    
     -- VALID RSP PROCESS
-    process(S_VALID_RSP)
+    process(clk, S_VALID_RSP)
     variable AXI_ID_CHECK : boolean;
     begin
         if rising_edge(S_VALID_RSP) then -- valid response transaction is ready
-            -- used to not considering the execution of the subsequent ifs
             AXI_ID_CHECK := false; 
             
             -- 1) find the corresponding axi id to remap
             -- counter must not be 0
             for i in 0 to POOL_SIZE-1 loop
-                if SAVED_MAPS( (i+1)*EntryRange-COUNTER_WIDTH-1 downto i*EntryRange + AXI_ID_WIDTH) = S_AXI_ID_RSP and
-                SAVED_MAPS( (i+1)*EntryRange-1 downto i*EntryRange+2*AXI_ID_WIDTH) /= std_logic_vector(to_unsigned(0, COUNTER_WIDTH)) and -- counter /= 0 
+                if SAVED_MAPS( (i+1)*EntryRange-COUNTER_WIDTH-1 downto i*EntryRange + AXI_ID_WIDTH) = S_AXI_ID_RSP and --SAVED_AXI_ID= AXI_ID_RSP?
+                SAVED_MAPS( (i+1)*EntryRange-1 downto i*EntryRange+2*AXI_ID_WIDTH) /= std_logic_vector(to_unsigned(0, COUNTER_WIDTH)) and -- COUNTER /= 0?
                 AXI_ID_CHECK = false then
                     -- decrement counter, output the original axi id (saved axi id)
-                    register_cmd(i) <= '0';
-                    activate_register(i) <= '1'; 
+                    REGISTERS_CMD(i) <= '0';
+                    ACTIVATE_REGISTERS(i) <= '1'; 
+                    -- this should be cleared when the slaves put it to 0
+                    M_AXI_VALID_RSP <= '1';
+                    -- the axi id value will be kept till the next transaction
                     M_AXI_ID_RSP <= SAVED_MAPS((i+1)*EntryRange-COUNTER_WIDTH-AXI_ID_WIDTH-1 downto i*EntryRange); --output the remapped axi_id
                 end if;
 			end loop;
 			
 			if AXI_ID_CHECK = false then
 			     error <= '1';
-			end if;
-        end if;        
+			end if; 
+        elsif rising_edge(clk) then
+            for i in 0 to POOL_SIZE loop
+                REGISTERS_CMD(i) <= '0';
+                ACTIVATE_REGISTERS(i) <= '0';
+            end loop;
+        end if;      
     end process;
 
 end Behavioral;
