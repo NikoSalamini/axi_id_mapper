@@ -97,17 +97,21 @@ architecture Structural of AXI_ID_Mapper is
     -- valid signals
     -- each one is connected to the VALID REQ input port of a LUT
     -- only one lut is activated depending on awuser
+    -- those signals are the valid signal connected to the each write and read LUT for request/response. 
+    -- One signal at time will be set to 1 to trigger the corresponding remapping
     signal valids_req_write: std_logic_vector(NMaster-1 downto 0) := (others => '0'); 
     signal valids_req_read: std_logic_vector(NMaster-1 downto 0) := (others => '0');
-    -- each one is connected to the VALID RSP input port of a LUT
     signal valids_rsp_write: std_logic_vector(NMaster-1 downto 0) := (others => '0'); 
     signal valids_rsp_read: std_logic_vector(NMaster-1 downto 0) := (others => '0'); 
+    
     -- each one is connected to the valid signals of the VALID REQ output port of a LUT
+    -- those are the output valid signals of the LUT indicating that the remapping is ready
     signal valid_req_write_out: std_logic_vector(NMaster-1 downto 0) := (others => '0'); 
     signal valid_rsp_write_out: std_logic_vector(NMaster-1 downto 0) := (others => '0'); 
     signal valid_req_read_out: std_logic_vector(NMaster-1 downto 0) := (others => '0'); 
     signal valid_rsp_read_out: std_logic_vector(NMaster-1 downto 0) := (others => '0'); 
-    -- each AXI_ID_WIDTH bits are connected to the M_AXI_ID port of the LUT
+    
+    -- each AXI_ID_WIDTH bits are connected to the M_AXI_ID port of the LUT. Those indicating the remapping for the write/read request/response.
     signal axi_ids_req_write: std_logic_vector( (NMaster*AXI_ID_WIDTH)-1 downto 0) := (others => '0'); 
     signal axi_ids_req_read: std_logic_vector( (NMaster*AXI_ID_WIDTH)-1 downto 0) := (others => '0');
     signal axi_ids_rsp_write: std_logic_vector( (NMaster*AXI_ID_WIDTH)-1 downto 0) := (others => '0');
@@ -167,7 +171,7 @@ begin
     -- corresponding AxID, xID is set too and the output is mapped to the one of the activated lut.
     -- So the valid signal coming from the LUTs works like a ready signal to indicates that the mapping has been done and it is ready.
    
-    -- WRITE CHANNEL
+    -- --------------------------------------WRITE CHANNEL--------------------------------------------------------
     -- AWUSER is not set in the sensitivity list because is certainly set when AWVALID is high 
     process(clk, S_AWVALID)
     begin
@@ -181,11 +185,12 @@ begin
             M_AWVALID <= '0';
         elsif rising_edge(clk) then
             -- keeps the values
-            valids_req_write <= valids_req_write;
+            valids_req_write <= (others => '0');
         end if;
     end process;
     
-    
+    -- valid_req_write activate a LUT --> when the LUT is ready for the remapping it sets valid_req_write_out
+    -- the axi id mapper see which one has been set and perform remapping
     -- when one of the luts set his valid signal, M_AWID is updated
     process(valid_req_write_out, axi_ids_req_write, S_AWVALID)
     begin
@@ -201,16 +206,17 @@ begin
 
     
     -- response channel
-    -- when the signal indicating a valid response id goes high then i activate the correct lut
+    -- when the signal indicating a valid response id goes high then the correct lut is activated
     process(clk, S_BVALID)
     begin
         if S_BVALID = '1' then
             -- which to connect for inverse mapping?
             for i in (NMaster - 1) downto 0 loop
+                -- the match is based on the range
+                -- i*POOL_SIZE_LUT is the first map assigned to the i-th LUT and FIRST_POOL_VALUE + POOL_SIZE -1 is the last
                 if (to_unsigned(i*POOL_SIZE_LUT + POOL_SIZE_LUT - 1, AXI_ID_WIDTH) >= unsigned(S_BID)) 
                 and (unsigned(S_BID)) >= (to_unsigned(i*POOL_SIZE_LUT, AXI_ID_WIDTH)) then
                     valids_rsp_write(i) <= S_BVALID;
-                    M_BID <= axi_ids_rsp_write((i+1)*AXI_ID_WIDTH -1 downto i*AXI_ID_WIDTH);
                 end if;
             end loop;
         elsif S_BVALID = '0' then
@@ -219,25 +225,28 @@ begin
             -- if the master set AWVALID to 0, It must set it immmediately
             M_BVALID <= '0';
         elsif rising_edge(clk) then
-            -- keeps the values
-            valids_rsp_write <= valids_rsp_write;
+            valids_rsp_write <= (others => '0');
         end if;
     end process;
     
+    -- valid_rsp_write activate a LUT --> when the LUT is ready for the remapping it sets valid_rsp_write_out
+    -- the axi id mapper see which one has been set and perform remapping
     -- when one of the luts set his valid signal, M_BID is updated
-    process(valid_rsp_write_out, axi_ids_rsp_write, S_BVALID)
+    process(valid_rsp_write_out, axi_ids_rsp_write)
     begin
         if S_BVALID = '1' then
             for i in (NMaster-1) downto 0 loop
                 if valid_rsp_write_out(i) = '1' then
-                    M_BID <= axi_ids_req_write((to_integer(unsigned(S_AWUSER)) + 1) * AXI_ID_WIDTH - 1 downto to_integer(unsigned(S_AWUSER)) * AXI_ID_WIDTH);
+                    M_BID <= axi_ids_rsp_write((i+1)*AXI_ID_WIDTH -1 downto i*AXI_ID_WIDTH);
                     M_BVALID <= '1';
                 end if;
             end loop;
         end if;
     end process;
     
-    -- READ CHANNEL
+    -- --------------------------------------WRITE CHANNEL--------------------------------------------------------
+    
+    -- --------------------------------------READ CHANNEL---------------------------------------------------------
     process(clk, S_ARVALID)
         begin
             if S_ARVALID = '1' then
@@ -250,10 +259,9 @@ begin
                 M_ARVALID <= '0';
             elsif rising_edge(clk) then
                 -- keeps the values
-                valids_req_read <= valids_req_read;
+                valids_req_read <= (others => '0');
             end if;
     end process;
-    
     
     -- when one of the luts set his valid signal, M_AWID is updated
     process(valid_req_read_out, axi_ids_req_read, S_ARVALID)
@@ -267,7 +275,6 @@ begin
             end loop;
         end if;
     end process;
-
     
     -- response channel
     -- when the signal indicating a valid response id goes high then i activate the correct lut
@@ -279,7 +286,6 @@ begin
                 if (to_unsigned(i*POOL_SIZE_LUT + POOL_SIZE_LUT - 1, AXI_ID_WIDTH) >= unsigned(S_RID)) 
                 and (unsigned(S_RID)) >= (to_unsigned(i*POOL_SIZE_LUT, AXI_ID_WIDTH)) then
                     valids_rsp_read(i) <= S_RVALID;
-                    M_RID <= axi_ids_rsp_read((i+1)*AXI_ID_WIDTH -1 downto i*AXI_ID_WIDTH);
                 end if;
             end loop;
         elsif S_RVALID = '0' then
@@ -289,8 +295,23 @@ begin
             M_RVALID <= '0';
         elsif rising_edge(clk) then
             -- keeps the values
-            valids_rsp_read <= valids_rsp_read;
+            valids_rsp_read <= (others => '0');
         end if;
     end process;
+    
+    process(valid_rsp_read_out, axi_ids_rsp_read)
+    begin
+        if S_RVALID = '1' then
+            for i in (NMaster-1) downto 0 loop
+                if valid_rsp_read_out(i) = '1' then
+                    M_RID <= axi_ids_rsp_read((i+1)*AXI_ID_WIDTH -1 downto i*AXI_ID_WIDTH);
+                    M_RVALID <= '1';
+                end if;
+            end loop;
+        end if;
+    end process;
+    
+    
+    -- --------------------------------------READ CHANNEL---------------------------------------------------------
 
 end Structural;
