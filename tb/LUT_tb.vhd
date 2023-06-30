@@ -77,7 +77,30 @@ architecture beh of LUT_tb is
             error => error_ext
         );
 		
-		stimulus: process
+		
+		-- first test with just one mapping (IT WORKS)
+--		stimulus: process
+--		begin
+--			reset_ext <= '1';
+--			wait for 200 ns;
+--			reset_ext <= '0';
+--			S_AXI_ID_REQ_ext <= b"100000"; -- should map to 000000
+--			wait for 100 ns;
+--			S_VALID_REQ_ext <= '1';
+--			wait for 500 ns;
+--			S_VALID_REQ_ext <= '0';
+--			wait for 500 ns;
+--			S_AXI_ID_RSP_ext <= b"000000"; -- should remap to 100000
+--			wait for 100 ns;
+--			S_VALID_RSP_ext <= '1'; -- should remap to 1000000
+--			wait for 500 ns;
+--			S_VALID_RSP_ext <= '0';
+--			wait for 3000 ns;
+--			testing <= false; 
+--		end process;
+        
+        -- second test of two consecutive axi ids mapping to the same output axi id (IT WORKS)
+        stimulus: process
 		begin
 			reset_ext <= '1';
 			wait for 200 ns;
@@ -88,6 +111,17 @@ architecture beh of LUT_tb is
 			wait for 500 ns;
 			S_VALID_REQ_ext <= '0';
 			wait for 500 ns;
+			S_AXI_ID_REQ_ext <= b"100000"; -- should map to 000000
+			wait for 100 ns;
+			S_VALID_REQ_ext <= '1';
+			wait for 500 ns;
+			S_VALID_REQ_ext <= '0';
+			wait for 500 ns;
+			S_AXI_ID_RSP_ext <= b"000000"; -- should remap to 100000
+			wait for 100 ns;
+			S_VALID_RSP_ext <= '1'; -- should remap to 1000000
+			wait for 500 ns;
+			S_VALID_RSP_ext <= '0';
 			S_AXI_ID_RSP_ext <= b"000000"; -- should remap to 100000
 			wait for 100 ns;
 			S_VALID_RSP_ext <= '1'; -- should remap to 1000000

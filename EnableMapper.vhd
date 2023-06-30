@@ -62,25 +62,33 @@ constant EntryRange: natural := COUNTER_WIDTH+(2*AXI_ID_WIDTH);
 constant CounterMax: std_logic_vector(COUNTER_WIDTH-1 downto 0) := (others => '1');
 
 -- signals
-signal activate_registers_signal: std_logic_vector (POOL_SIZE-1 downto 0) := (others => '0');
-signal registers_cmd_signal: std_logic_vector (POOL_SIZE-1 downto 0) := (others => '0');
+signal m_axi_valid_req_signal: std_logic := '0';
+signal m_axi_valid_rsp_signal: std_logic := '0';
+signal inc_signal_from_req: std_logic_vector (POOL_SIZE-1 downto 0) := (others => '0'); -- 1 means that a increment request has been sent by the request channel
+signal dec_signal_from_rsp: std_logic_vector (POOL_SIZE-1 downto 0) := (others => '0'); -- 0 means that a decrement request has been sent by the response channel
+signal error_signal_req: std_logic := '0';
+signal error_signal_rsp: std_logic := '0';
 
 begin
 	
 	-- axi 4 signals are clock synchronous, they change synchronously
 	-- VALID_REQ PROCESS
-    process(clk)
+    process(clk, S_VALID_REQ, S_VALID_RSP)
     variable FREE_CHECK : boolean;
-    variable AXI_ID_CHECK : boolean;
+    variable AXI_ID_CHECK_REQ : boolean;
+    variable AXI_ID_CHECK_RSP : boolean;
     begin
-        AXI_ID_CHECK := false; 
-        FREE_CHECK := false;
+        -- HANDLE THE RESPONSE CHANNGEL
         -- if the valid has been put to 0, then the output must be set down.
-        if S_VALID_REQ = '0' then  
-            M_AXI_VALID_REQ <= '0';
-        elsif rising_edge(S_VALID_REQ) then 
+        if falling_edge(S_VALID_REQ) then  
+            m_axi_valid_req_signal <= '0';
+            inc_signal_from_req <= (others => '0');
+        -- note that 2 consequent write transaction are discriminated with two different raise of the valid signal 
+        -- the valid of the transactin goes low when the ready signal of the slave is set 
+        elsif rising_edge(clk) and S_VALID_REQ = '1' and m_axi_valid_req_signal = '0' then 
             -- used to not considering the execution of the subsequent ifs
-            
+            AXI_ID_CHECK_REQ := false; 
+            FREE_CHECK := false;
             -- 1) check if there is axi id match
             -- -counter must be >= 1 to be in use
             -- -if the counter is max, all 1s, an error is raised indicating that the maximum number of transaction for an axi id
@@ -90,21 +98,20 @@ begin
                 if 
                 SAVED_MAPS( (i+1)*EntryRange-COUNTER_WIDTH-1 downto i*EntryRange + AXI_ID_WIDTH) = S_AXI_ID_REQ and -- AXI_ID_SAVED = S_AXI_ID_REQ?
                 SAVED_MAPS( (i+1)*EntryRange-1 downto i*EntryRange+2*AXI_ID_WIDTH) >= std_logic_vector(to_unsigned(1, COUNTER_WIDTH)) and -- COUNTER >= 1?
-                (AXI_ID_CHECK = false) then
+                (AXI_ID_CHECK_REQ = false) then
                     -- axi id match
-				   AXI_ID_CHECK := true;
+				   AXI_ID_CHECK_REQ := true;
 				   
 				   if SAVED_MAPS( (i+1)*EntryRange-1 downto i*EntryRange+2*AXI_ID_WIDTH) = CounterMax then -- COUNTER = COUNTERMAX?
 				        error <= '1';
 				   else
-                        -- increment counter, enable register, save the mapped AXI ID, output the remapped AXI ID     
+                        -- increment counter REQUEST, enable register, save the mapped AXI ID, output the remapped AXI ID     
                         -- the next clock the registers will be updated   
-				        registers_cmd_signal(i) <= '1'; 
-				        activate_registers_signal(i) <= '1'; 
-				        -- this should be cleared when the masters put it to 0
-				        M_AXI_VALID_REQ <= '1';
-				        -- the axi id value will be kept till the next transaction
+				        inc_signal_from_req(i) <= '1'; 
+                        -- the axi id value will be kept till the next transaction
 				        M_AXI_ID_REQ <= SAVED_MAPS((i+1)*EntryRange-COUNTER_WIDTH-AXI_ID_WIDTH-1 downto i*EntryRange); --output the remapped axi_id
+				        -- this should be cleared when the masters put it to 0
+				        m_axi_valid_req_signal <= '1';
                    end if; 
 				end if;
 			end loop;   
@@ -115,66 +122,66 @@ begin
 			for i in 0 to POOL_SIZE-1 loop
 			    if SAVED_MAPS( (i+1)*EntryRange-1 downto i*EntryRange+2*AXI_ID_WIDTH) = std_logic_vector(to_unsigned(0, COUNTER_WIDTH)) and  -- COUNTER = 0?
 				(FREE_CHECK = false) and
-				(AXI_ID_CHECK = false) then
+				(AXI_ID_CHECK_REQ = false) then
 				    -- free check
                     FREE_CHECK := true;                  
                     -- increment counter, enable register, save the mapped AXI ID, output the remapped AXI ID   
-                    registers_cmd_signal(i) <= '1'; 
-                    activate_registers_signal(i) <= '1'; 
-                    -- this should be cleared when the masters put it to 0
-                    M_AXI_VALID_REQ <= '1';
+                    inc_signal_from_req(i) <= '1'; -- this signal will activate the correct register
                     -- the axi id value will be kept till the next transaction
-                    M_AXI_ID_REQ <= SAVED_MAPS((i+1)*EntryRange-COUNTER_WIDTH-AXI_ID_WIDTH-1 downto i*EntryRange); --output the remapped axi_id
+                    M_AXI_ID_REQ <= SAVED_MAPS((i+1)*EntryRange-COUNTER_WIDTH-AXI_ID_WIDTH-1 downto i*EntryRange); --output the remapped axi_id 
+                    -- this should be cleared when the masters put it to 0
+                    m_axi_valid_req_signal <= '1';
 				end if;
 			end loop;
 			
 			-- if the research indicates no axi id match neither free axi ids then error is set
-			if FREE_CHECK = false and AXI_ID_CHECK = false then 
-                error <= '1';
+			if FREE_CHECK = false and AXI_ID_CHECK_REQ = false then 
+                error_signal_req <= '1';
             end if;
         elsif rising_edge(clk) then
-            registers_cmd_signal <= (others => '0'); 
-		    activate_registers_signal <= (others => '0'); 
+            inc_signal_from_req <= (others => '0');
         end if;
-    end process;
-    
-    -- VALID RSP PROCESS
-    process(clk, S_VALID_RSP)
-    variable AXI_ID_CHECK : boolean;
-    begin
-        -- if the valid has been put to 0, then the output must be set down.
-        if S_VALID_RSP = '0' then
-	       M_AXI_VALID_RSP <= '0';
-	       error <= '1';
-        elsif rising_edge(S_VALID_RSP) then -- valid response transaction is ready
-            AXI_ID_CHECK := false; 
-            
-            -- 1) find the corresponding axi id to remap
+        
+        -- HANDLE THE RESPONSE CHANNEL
+        if falling_edge(S_VALID_RSP) then
+	       m_axi_valid_rsp_signal <= '0';
+	       dec_signal_from_rsp <= (others => '0');
+        elsif rising_edge(clk) and S_VALID_RSP = '1' and m_axi_valid_rsp_signal = '0' then -- valid response transaction is ready
+            AXI_ID_CHECK_RSP := false;
+            -- find the corresponding axi id to remap
             -- counter must not be 0
             for i in 0 to POOL_SIZE-1 loop
-                if SAVED_MAPS( (i+1)*EntryRange-COUNTER_WIDTH-1 downto i*EntryRange + AXI_ID_WIDTH) = S_AXI_ID_RSP and --SAVED_AXI_ID= AXI_ID_RSP?
-                SAVED_MAPS( (i+1)*EntryRange-1 downto i*EntryRange+2*AXI_ID_WIDTH) /= std_logic_vector(to_unsigned(0, COUNTER_WIDTH)) and -- COUNTER /= 0?
-                AXI_ID_CHECK = false then
+                if SAVED_MAPS( (i+1)*EntryRange-COUNTER_WIDTH-AXI_ID_WIDTH-1 downto i*EntryRange) = S_AXI_ID_RSP and -- MAPPED AXI_ID = AXI_ID_RSP?
+                SAVED_MAPS( (i+1)*EntryRange-1 downto i*EntryRange+2*AXI_ID_WIDTH) /= std_logic_vector(to_unsigned(0, COUNTER_WIDTH)) and -- COUNTER /= 0? (used entry)
+                AXI_ID_CHECK_RSP = false then
+                    AXI_ID_CHECK_RSP := true;
                     -- decrement counter, output the original axi id (saved axi id)
-                    registers_cmd_signal(i) <= '0';
-                    activate_registers_signal(i) <= '1'; 
-                    -- this should be cleared when the slaves put it to 0
-                    M_AXI_VALID_RSP <= '1';
+                    dec_signal_from_rsp(i) <= '1';
                     -- the axi id value will be kept till the next transaction
-                    M_AXI_ID_RSP <= SAVED_MAPS((i+1)*EntryRange-COUNTER_WIDTH-AXI_ID_WIDTH-1 downto i*EntryRange); --output the remapped axi_id
+                    M_AXI_ID_RSP <= SAVED_MAPS((i+1)*EntryRange-COUNTER_WIDTH-1 downto i*EntryRange+AXI_ID_WIDTH); --output the saved axi_id
+                    -- this should be cleared when the slaves put it to 0
+                    m_axi_valid_rsp_signal <= '1';
                 end if;
 			end loop;
-			
-			if AXI_ID_CHECK = false then
-			     error <= '1';
-			end if; 
+			-- if the research indicates no axi id match neither free axi ids then error is set
+			if  AXI_ID_CHECK_RSP = false then 
+                error_signal_rsp <= '1';
+            end if;
         elsif rising_edge(clk) then
-            registers_cmd_signal <= (others => '0');
-            activate_registers_signal <= (others => '0');
+            dec_signal_from_rsp <= (others => '0');
         end if;      
     end process;
     
-    ACTIVATE_REGISTERS <= activate_registers_signal;
-    REGISTERS_CMD <= registers_cmd_signal;
+    -- mapping the output port
+    M_AXI_VALID_REQ <= m_axi_valid_req_signal;
+    M_AXI_VALID_RSP <= m_axi_valid_rsp_signal;
+    
+    activate_registers_gen: for i in (POOL_SIZE - 1) downto 0 generate  
+        -- should be activated only when 10 or 01
+        -- if a decrement and an incremented are commanded at the same time the register is not modified
+        ACTIVATE_REGISTERS(i) <= dec_signal_from_rsp(i) xor inc_signal_from_req(i);
+        -- if the signal of req is 1 then it is incremented, otherwise it is kept as 0 (decrement, or keep depending if the register is enabled)
+        REGISTERS_CMD(i) <= inc_signal_from_req(i);
+    end generate;
 
 end Behavioral;

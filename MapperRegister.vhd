@@ -22,6 +22,9 @@ end entity MapperRegister;
 architecture Behavioral of MapperRegister is
     signal axi_id_saved: std_logic_vector(AXI_ID_WIDTH-1 downto 0);
     signal counter_value : std_logic_vector(COUNTER_WIDTH-1 downto 0);
+    -- constants
+    constant CounterMin: std_logic_vector(COUNTER_WIDTH-1 downto 0) := (others => '0');
+    constant CounterMax: std_logic_vector(COUNTER_WIDTH-1 downto 0) := (others => '1');
 begin
     process(clk, reset)
     begin
@@ -30,17 +33,18 @@ begin
             axi_id_saved  <= (others => '0');
         elsif rising_edge(clk) then
             if en = '1' then
-                if cmd = '0' then
+                if cmd = '0' and counter_value /= CounterMin then
                     counter_value <= std_logic_vector(unsigned(counter_value) - 1);
-                elsif cmd = '1' then
+                elsif cmd = '1'  and counter_value /= CounterMax then
                     counter_value <= std_logic_vector(unsigned(counter_value) + 1);
                 end if;
                 axi_id_saved <= axi_id;
+            else
+                counter_value <= counter_value;
             end if;
-            counter_value <= counter_value;
         end if;
     end process;
     
     -- output: COUNTER | AXI ID SAVED | AXI ID MAPPED
-    q <= std_logic_vector(counter_value) & axi_id_saved & AXI_ID_MAP; 
+    q <= std_logic_vector(unsigned(counter_value)) & axi_id_saved & AXI_ID_MAP; 
 end architecture Behavioral;
