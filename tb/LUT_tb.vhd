@@ -18,7 +18,7 @@ architecture beh of LUT_tb is
 	generic(
 		FIRST_POOL_VALUE: integer := 0; -- the first value of the pool
 		POOL_SIZE: integer := 8; -- the pool size
-		VALUE_WIDTH: integer := 6; -- value width of the output axi id
+		AXI_ID_WIDTH: integer := 6; -- value width of the output axi id
 		COUNTER_WIDTH: integer := 2 -- counter of active transactions with the same axi id
 	);
     port ( 
@@ -30,6 +30,8 @@ architecture beh of LUT_tb is
         S_VALID_RSP: in std_logic; -- the valid signal of the response
         M_AXI_ID_REQ: out std_logic_vector(5 downto 0);
         M_AXI_ID_RSP: out std_logic_vector(5 downto 0);
+        M_AXI_VALID_REQ: out std_logic := '0';
+        M_AXI_VALID_RSP: out std_logic := '0';
         error: out std_logic := '0'
     );
     end component;
@@ -45,6 +47,8 @@ architecture beh of LUT_tb is
 	signal S_VALID_RSP_ext  : std_logic := '0';
 	signal M_AXI_ID_REQ_ext : std_logic_vector(5 downto 0);
 	signal M_AXI_ID_RSP_ext : std_logic_vector(5 downto 0);
+	signal M_AXI_VALID_REQ_ext  : std_logic;
+	signal M_AXI_VALID_RSP_ext  : std_logic;
 	signal error_ext : std_logic;
 	signal testing	: boolean := true ;
 	
@@ -52,8 +56,9 @@ architecture beh of LUT_tb is
 	begin
 		clk_ext <= not clk_ext after clk_period/2 when testing else '0';
 		
+		
 		--component instantiation
-        write_lut_def: LUT
+        lut_def: LUT
         generic map (
             POOL_SIZE => 8,
             FIRST_POOL_VALUE => 0
@@ -67,6 +72,8 @@ architecture beh of LUT_tb is
             S_VALID_RSP  => S_VALID_RSP_ext, -- the valid signal of the response
             M_AXI_ID_REQ => M_AXI_ID_REQ_ext, -- the output of the LUT with the remapped axi id for the request
             M_AXI_ID_RSP => M_AXI_ID_RSP_ext, -- the output of the LUT with the original axi id for the response
+            M_AXI_VALID_REQ => M_AXI_VALID_REQ_ext, 
+            M_AXI_VALID_RSP => M_AXI_VALID_RSP_ext,
             error => error_ext
         );
 		
@@ -78,13 +85,13 @@ architecture beh of LUT_tb is
 			S_AXI_ID_REQ_ext <= b"100000"; -- should map to 000000
 			wait for 100 ns;
 			S_VALID_REQ_ext <= '1';
-			wait for 100 ns;
+			wait for 500 ns;
 			S_VALID_REQ_ext <= '0';
 			wait for 500 ns;
 			S_AXI_ID_RSP_ext <= b"000000"; -- should remap to 100000
 			wait for 100 ns;
 			S_VALID_RSP_ext <= '1'; -- should remap to 1000000
-			wait for 100 ns;
+			wait for 500 ns;
 			S_VALID_RSP_ext <= '0';
 			wait for 3000 ns;
 			testing <= false; 

@@ -6,7 +6,7 @@ use IEEE.NUMERIC_STD.ALL;
 entity MapperRegister is
     generic (
         COUNTER_WIDTH: positive := 2;
-        VALUE_WIDTH: positive := 6;
+        AXI_ID_WIDTH: positive := 6;
         AXI_ID_MAP: std_logic_vector(5 downto 0) -- AXI ID MAP
     );
     port (
@@ -14,14 +14,14 @@ entity MapperRegister is
         reset   	: in  std_logic;
         en          : in  std_logic;
         cmd         : in  std_logic; -- 1 inc, 0 dec
-        axi_id      : in  std_logic_vector((COUNTER_WIDTH+2*VALUE_WIDTH)-1 downto 0); -- axi id to save
-        q       	: out std_logic_vector((COUNTER_WIDTH+2*VALUE_WIDTH)-1 downto 0)
+        axi_id      : in  std_logic_vector(AXI_ID_WIDTH-1 downto 0); -- axi id to save
+        q       	: out std_logic_vector((COUNTER_WIDTH+2*AXI_ID_WIDTH)-1 downto 0)
     );
 end entity MapperRegister;
 
 architecture Behavioral of MapperRegister is
-    signal axi_id_saved: std_logic_vector(VALUE_WIDTH-1 downto 0);
-    signal counter_value : unsigned((COUNTER_WIDTH+2*VALUE_WIDTH)-1 downto 2*VALUE_WIDTH);
+    signal axi_id_saved: std_logic_vector(AXI_ID_WIDTH-1 downto 0);
+    signal counter_value : std_logic_vector(COUNTER_WIDTH-1 downto 0);
 begin
     process(clk, reset)
     begin
@@ -31,9 +31,9 @@ begin
         elsif rising_edge(clk) then
             if en = '1' then
                 if cmd = '0' then
-                    counter_value <= counter_value - 1;
+                    counter_value <= std_logic_vector(unsigned(counter_value) - 1);
                 elsif cmd = '1' then
-                    counter_value <= counter_value + 1;
+                    counter_value <= std_logic_vector(unsigned(counter_value) + 1);
                 end if;
                 axi_id_saved <= axi_id;
             end if;

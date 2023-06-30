@@ -56,48 +56,29 @@ entity EnableMapper is
 end EnableMapper;
 
 architecture Behavioral of EnableMapper is
-
--- MappeRegister component
--- It will hold: USED_COUNTER [13:12] | ORIGINAL_AXI_ID [11:6] | REMAPPED_AXI_ID [5:0]
-component MapperRegister is
-	generic (
-		COUNTER_WIDTH: positive := 2;
-        VALUE_WIDTH: positive := 6;
-        AXI_ID_MAP: std_logic_vector(5 downto 0) -- AXI ID MAP
-	);
-    port (
-		clk     	: in  std_logic;
-        reset   	: in  std_logic;
-        en          : in  std_logic;
-        cmd         : in  std_logic; -- 1 inc, 0 dec
-        axi_id      : in  std_logic_vector((COUNTER_WIDTH+2*VALUE_WIDTH)-1 downto 0);
-        q       	: out std_logic_vector((COUNTER_WIDTH+2*VALUE_WIDTH)-1 downto 0)
-	);
-end component;
-
 -- constants
 -- placeholders to access i-th field of SAVED_MAPS
 constant EntryRange: natural := COUNTER_WIDTH+(2*AXI_ID_WIDTH);
 constant CounterMax: std_logic_vector(COUNTER_WIDTH-1 downto 0) := (others => '1');
 
+-- signals
+signal activate_registers_signal: std_logic_vector (POOL_SIZE-1 downto 0) := (others => '0');
+signal registers_cmd_signal: std_logic_vector (POOL_SIZE-1 downto 0) := (others => '0');
+
 begin
-	-- M_AXI_VALID_REQ change to 0
-	-- M_AXI_VALID_REQ is set to 1 only when the remapping is done
-	process (S_VALID_REQ)
-	begin
-	   if falling_edge(S_VALID_REQ) then
-	       M_AXI_VALID_REQ <= '0';
-	   end if;
-	end process;
 	
+	-- axi 4 signals are clock synchronous, they change synchronously
 	-- VALID_REQ PROCESS
-    process(clk, S_VALID_REQ)
+    process(clk)
     variable FREE_CHECK : boolean;
     variable AXI_ID_CHECK : boolean;
     begin
         AXI_ID_CHECK := false; 
         FREE_CHECK := false;
-        if rising_edge(S_VALID_REQ) then 
+        -- if the valid has been put to 0, then the output must be set down.
+        if S_VALID_REQ = '0' then  
+            M_AXI_VALID_REQ <= '0';
+        elsif rising_edge(S_VALID_REQ) then 
             -- used to not considering the execution of the subsequent ifs
             
             -- 1) check if there is axi id match
@@ -118,8 +99,8 @@ begin
 				   else
                         -- increment counter, enable register, save the mapped AXI ID, output the remapped AXI ID     
                         -- the next clock the registers will be updated   
-				        REGISTERS_CMD(i) <= '1'; 
-				        ACTIVATE_REGISTERS(i) <= '1'; 
+				        registers_cmd_signal(i) <= '1'; 
+				        activate_registers_signal(i) <= '1'; 
 				        -- this should be cleared when the masters put it to 0
 				        M_AXI_VALID_REQ <= '1';
 				        -- the axi id value will be kept till the next transaction
@@ -138,8 +119,8 @@ begin
 				    -- free check
                     FREE_CHECK := true;                  
                     -- increment counter, enable register, save the mapped AXI ID, output the remapped AXI ID   
-                    REGISTERS_CMD(i) <= '1';
-                    ACTIVATE_REGISTERS(i) <= '1'; 
+                    registers_cmd_signal(i) <= '1'; 
+                    activate_registers_signal(i) <= '1'; 
                     -- this should be cleared when the masters put it to 0
                     M_AXI_VALID_REQ <= '1';
                     -- the axi id value will be kept till the next transaction
@@ -152,27 +133,20 @@ begin
                 error <= '1';
             end if;
         elsif rising_edge(clk) then
-            for i in 0 to POOL_SIZE loop
-                REGISTERS_CMD(i) <= '0';
-                ACTIVATE_REGISTERS(i) <= '0';
-            end loop;
+            registers_cmd_signal <= (others => '0'); 
+		    activate_registers_signal <= (others => '0'); 
         end if;
     end process;
-    
-    -- same thing for the response
-    -- slaves set this signal
-	process (S_VALID_RSP)
-	begin
-	   if falling_edge(S_VALID_RSP) then
-	       M_AXI_VALID_RSP <= '0';
-	   end if;
-	end process;
     
     -- VALID RSP PROCESS
     process(clk, S_VALID_RSP)
     variable AXI_ID_CHECK : boolean;
     begin
-        if rising_edge(S_VALID_RSP) then -- valid response transaction is ready
+        -- if the valid has been put to 0, then the output must be set down.
+        if S_VALID_RSP = '0' then
+	       M_AXI_VALID_RSP <= '0';
+	       error <= '1';
+        elsif rising_edge(S_VALID_RSP) then -- valid response transaction is ready
             AXI_ID_CHECK := false; 
             
             -- 1) find the corresponding axi id to remap
@@ -182,8 +156,8 @@ begin
                 SAVED_MAPS( (i+1)*EntryRange-1 downto i*EntryRange+2*AXI_ID_WIDTH) /= std_logic_vector(to_unsigned(0, COUNTER_WIDTH)) and -- COUNTER /= 0?
                 AXI_ID_CHECK = false then
                     -- decrement counter, output the original axi id (saved axi id)
-                    REGISTERS_CMD(i) <= '0';
-                    ACTIVATE_REGISTERS(i) <= '1'; 
+                    registers_cmd_signal(i) <= '0';
+                    activate_registers_signal(i) <= '1'; 
                     -- this should be cleared when the slaves put it to 0
                     M_AXI_VALID_RSP <= '1';
                     -- the axi id value will be kept till the next transaction
@@ -195,11 +169,12 @@ begin
 			     error <= '1';
 			end if; 
         elsif rising_edge(clk) then
-            for i in 0 to POOL_SIZE loop
-                REGISTERS_CMD(i) <= '0';
-                ACTIVATE_REGISTERS(i) <= '0';
-            end loop;
+            registers_cmd_signal <= (others => '0');
+            activate_registers_signal <= (others => '0');
         end if;      
     end process;
+    
+    ACTIVATE_REGISTERS <= activate_registers_signal;
+    REGISTERS_CMD <= registers_cmd_signal;
 
 end Behavioral;

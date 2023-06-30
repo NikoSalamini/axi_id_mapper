@@ -55,7 +55,7 @@ architecture Structural of LUT is
     component MapperRegister is
         generic (
             COUNTER_WIDTH: positive := 2;
-            VALUE_WIDTH: positive := 6;
+            AXI_ID_WIDTH: positive := 6;
             AXI_ID_MAP: std_logic_vector(5 downto 0) -- AXI ID MAP
         );
         port (
@@ -63,8 +63,8 @@ architecture Structural of LUT is
             reset   	: in  std_logic;
             en          : in  std_logic;
             cmd         : in  std_logic; -- 1 inc, 0 dec
-            axi_id      : in  std_logic_vector((COUNTER_WIDTH+2*VALUE_WIDTH)-1 downto 0);
-            q       	: out std_logic_vector((COUNTER_WIDTH+2*VALUE_WIDTH)-1 downto 0)
+            axi_id      : in  std_logic_vector(AXI_ID_WIDTH-1 downto 0);
+            q       	: out std_logic_vector((COUNTER_WIDTH+2*AXI_ID_WIDTH)-1 downto 0)
         );
     end component;
 
@@ -74,7 +74,6 @@ signal activate_registers: std_logic_vector(POOL_SIZE-1 downto 0);
 signal registers_cmd: std_logic_vector(POOL_SIZE-1 downto 0);
 
 begin
-
     EnableMapper_def: EnableMapper
     generic map (
         FIRST_POOL_VALUE => FIRST_POOL_VALUE, 
@@ -108,7 +107,7 @@ begin
 		            en => activate_registers(i),
 		            cmd => registers_cmd(i),
 		            axi_id => S_AXI_ID_REQ,
-					q => reg_outputs_to_enable_mapper
+					q => reg_outputs_to_enable_mapper((i+1)*(COUNTER_WIDTH+(2*AXI_ID_WIDTH))-1 downto i*(COUNTER_WIDTH+(2*AXI_ID_WIDTH)))
 		);
 	end generate registers_def;
     
