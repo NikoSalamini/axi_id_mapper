@@ -116,6 +116,12 @@ architecture Structural of AXI_ID_Mapper is
     signal axi_ids_req_read: std_logic_vector( (NMaster*AXI_ID_WIDTH)-1 downto 0) := (others => '0');
     signal axi_ids_rsp_write: std_logic_vector( (NMaster*AXI_ID_WIDTH)-1 downto 0) := (others => '0');
     signal axi_ids_rsp_read: std_logic_vector( (NMaster*AXI_ID_WIDTH)-1 downto 0) := (others => '0');
+    
+    -- master axi valid signals
+    signal m_axi_awvalid: std_logic := '0';
+    signal m_axi_bvalid: std_logic := '0';
+    signal m_axi_awid: std_logic_vector(AXI_ID_WIDTH-1 downto 0) := (others => '0');
+    signal m_axi_bid: std_logic_vector(AXI_ID_WIDTH-1 downto 0) := (others => '0');
 begin
     -- each master has its own write and read LUT
     -- define the initial values to not overlap between the LUTs
@@ -172,77 +178,65 @@ begin
     -- So the valid signal coming from the LUTs works like a ready signal to indicates that the mapping has been done and it is ready.
    
     -- --------------------------------------WRITE CHANNEL--------------------------------------------------------
-    -- AWUSER is not set in the sensitivity list because is certainly set when AWVALID is high 
-    process(clk, S_AWVALID)
-    begin
-        if S_AWVALID = '1' then
-            -- which to connect for mapping? Depend to AWUSER
-            valids_req_write(natural(to_integer(unsigned(S_AWUSER)))) <= S_AWVALID;
-        elsif S_AWVALID = '0' then
-            -- set all to 0
-            valids_req_write <= (others => '0');
-            -- if the master set AWVALID to 0, It must set it immmediately
-            M_AWVALID <= '0';
-        elsif rising_edge(clk) then
-            -- keeps the values
-            valids_req_write <= (others => '0');
-        end if;
-    end process;
+    -- awvalid to '1' --> activate the register --> at rising of clock the enabler output the axi id and 
+    -- set the ith valid output to 1 -->
+    -- this unit see this change in valid_req_write_out, set awid and awvalid, put the valid signal to 0 so
+    -- at the next clock no registers will be enabled
     
-    -- valid_req_write activate a LUT --> when the LUT is ready for the remapping it sets valid_req_write_out
-    -- the axi id mapper see which one has been set and perform remapping
-    -- when one of the luts set his valid signal, M_AWID is updated
-    process(valid_req_write_out, axi_ids_req_write, S_AWVALID)
+    -- AWUSER is not set in the sensitivity list because is certainly set when AWVALID is high 
+    process(clk, S_AWVALID, valid_req_write_out, axi_ids_req_write)
     begin
-        if S_AWVALID = '1' then
+        if rising_edge(S_AWVALID) then
+            -- which to connect for mapping? Depend to AWUSER
+            valids_req_write(natural(to_integer(unsigned(S_AWUSER)))) <= '1';
+        elsif S_AWVALID = '0' then
+             m_axi_awvalid <= '0';
+        elsif rising_edge(clk) then
             for i in (NMaster-1) downto 0 loop
                 if valid_req_write_out(i) = '1' then
-                    M_AWID <= axi_ids_req_write((to_integer(unsigned(S_AWUSER)) + 1) * AXI_ID_WIDTH - 1 downto to_integer(unsigned(S_AWUSER)) * AXI_ID_WIDTH);
-                    M_AWVALID <= '1';
+                    m_axi_awid <= axi_ids_req_write((to_integer(unsigned(S_AWUSER)) + 1) * AXI_ID_WIDTH - 1 downto to_integer(unsigned(S_AWUSER)) * AXI_ID_WIDTH);
+                    m_axi_awvalid <= '1';
+                    valids_req_write <= (others => '0');
                 end if;
             end loop;
         end if;
-    end process;
-
-    
+     end process;
+     
     -- response channel
     -- when the signal indicating a valid response id goes high then the correct lut is activated
-    process(clk, S_BVALID)
+    -- valid_rsp_write activate a LUT --> when the LUT is ready for the remapping it sets valid_rsp_write_out
+    -- the axi id mapper see which one has been set and perform remapping
+    -- when one of the luts set his valid signal, M_BID is updated
+    process(clk, S_BVALID, valid_rsp_write_out, axi_ids_rsp_write)
     begin
-        if S_BVALID = '1' then
+        if rising_edge(S_BVALID) then
             -- which to connect for inverse mapping?
             for i in (NMaster - 1) downto 0 loop
                 -- the match is based on the range
                 -- i*POOL_SIZE_LUT is the first map assigned to the i-th LUT and FIRST_POOL_VALUE + POOL_SIZE -1 is the last
                 if (to_unsigned(i*POOL_SIZE_LUT + POOL_SIZE_LUT - 1, AXI_ID_WIDTH) >= unsigned(S_BID)) 
                 and (unsigned(S_BID)) >= (to_unsigned(i*POOL_SIZE_LUT, AXI_ID_WIDTH)) then
-                    valids_rsp_write(i) <= S_BVALID;
+                    valids_rsp_write(i) <= '1';
                 end if;
             end loop;
         elsif S_BVALID = '0' then
-            -- set all to 0
-            valids_rsp_write <= (others => '0');
-            -- if the master set AWVALID to 0, It must set it immmediately
-            M_BVALID <= '0';
+             m_axi_bvalid <= '0';
         elsif rising_edge(clk) then
-            valids_rsp_write <= (others => '0');
-        end if;
-    end process;
-    
-    -- valid_rsp_write activate a LUT --> when the LUT is ready for the remapping it sets valid_rsp_write_out
-    -- the axi id mapper see which one has been set and perform remapping
-    -- when one of the luts set his valid signal, M_BID is updated
-    process(valid_rsp_write_out, axi_ids_rsp_write)
-    begin
-        if S_BVALID = '1' then
             for i in (NMaster-1) downto 0 loop
                 if valid_rsp_write_out(i) = '1' then
-                    M_BID <= axi_ids_rsp_write((i+1)*AXI_ID_WIDTH -1 downto i*AXI_ID_WIDTH);
-                    M_BVALID <= '1';
+                    m_axi_bid <= axi_ids_rsp_write((i+1)*AXI_ID_WIDTH -1 downto i*AXI_ID_WIDTH);
+                    m_axi_bvalid <= '1';
+                    valids_rsp_write <= (others => '0');
                 end if;
             end loop;
         end if;
-    end process;
+     end process;
+     
+     M_AWVALID <= m_axi_awvalid;
+     M_AWID <= m_axi_awid;
+     M_BVALID <= m_axi_bvalid;
+     M_BID <= m_axi_bid;
+
     
     -- --------------------------------------WRITE CHANNEL--------------------------------------------------------
     
