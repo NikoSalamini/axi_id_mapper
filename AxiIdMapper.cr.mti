@@ -29,6 +29,17 @@ Model Technology ModelSim - Intel FPGA Edition vcom 10.5b Compiler 2016.10 Oct  
 -- Compiling entity LUT_tb
 -- Compiling architecture beh of LUT_tb
 
+} {} {}} C:/Users/nikos/Documents/GitHub/AxiIDMapper/tb/AXI_ID_Mapper_tb.vhd {1 {vcom -work work -2002 -explicit -stats=none C:/Users/nikos/Documents/GitHub/AxiIDMapper/tb/AXI_ID_Mapper_tb.vhd
+Model Technology ModelSim - Intel FPGA Edition vcom 10.5b Compiler 2016.10 Oct  5 2016
+-- Loading package STANDARD
+-- Loading package TEXTIO
+-- Loading package std_logic_1164
+-- Loading package std_logic_arith
+-- Loading package STD_LOGIC_UNSIGNED
+-- Loading package NUMERIC_STD
+-- Compiling entity AXI_ID_Mapper_tb
+-- Compiling architecture beh of AXI_ID_Mapper_tb
+
 } {} {}} C:/Users/nikos/Documents/GitHub/AxiIDMapper/LUT.vhd {1 {vcom -work work -2002 -explicit -stats=none C:/Users/nikos/Documents/GitHub/AxiIDMapper/LUT.vhd
 Model Technology ModelSim - Intel FPGA Edition vcom 10.5b Compiler 2016.10 Oct  5 2016
 -- Loading package STANDARD
