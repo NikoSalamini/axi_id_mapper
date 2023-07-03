@@ -73,7 +73,7 @@ begin
 	
 	-- axi 4 signals are clock synchronous, they change synchronously
 	
-    process(clk, S_VALID_REQ, S_VALID_RSP)
+    process(clk)
     variable FREE_CHECK : boolean;
     variable AXI_ID_CHECK_REQ : boolean;
     variable AXI_ID_CHECK_RSP : boolean;
