@@ -140,7 +140,7 @@ architecture beh of AXI_ID_Mapper_tb is
             S_AWID_ext <= b"100000"; -- remap to 000000-000111 (this remap to 000000)
             wait for 100 ns;
             S_AWVALID_ext <= '1';
-            wait for 500 ns;
+            wait for 300 ns;
             S_AWVALID_ext <= '0';
             wait for 100 ns;
             
@@ -150,7 +150,7 @@ architecture beh of AXI_ID_Mapper_tb is
             S_AWID_ext <= b"010000";
             wait for 100 ns;
             S_AWVALID_ext <= '1';
-            wait for 500 ns;
+            wait for 300 ns;
             S_AWVALID_ext <= '0';
             wait for 100 ns;
             
@@ -160,7 +160,7 @@ architecture beh of AXI_ID_Mapper_tb is
             S_AWID_ext <= b"010000";
             wait for 100 ns;
             S_AWVALID_EXT <= '1';
-            wait for 100 ns;
+            wait for 300 ns;
             S_AWVALID_EXT <= '0';
             wait for 100 ns;
             
@@ -179,7 +179,7 @@ architecture beh of AXI_ID_Mapper_tb is
             S_AWID_ext <= b"010000";
             wait for 100 ns;
             S_AWVALID_EXT <= '1';
-            wait for 100 ns;
+            wait for 300 ns;
             S_AWVALID_EXT <= '0';
             wait for 100 ns;
             
@@ -188,7 +188,7 @@ architecture beh of AXI_ID_Mapper_tb is
             S_BID_ext <= b"001000"; -- remap to saved 000000 on the first awuser of all zeros
             wait for 100 ns;
             S_BVALID_ext <= '1';
-            wait for 100 ns;
+            wait for 300 ns;
             S_BVALID_ext <= '0';
             wait for 100 ns;
             
@@ -197,9 +197,79 @@ architecture beh of AXI_ID_Mapper_tb is
             S_BID_ext <= b"000000"; -- remap to saved 100000 on the first awuser of all zeros
             wait for 100 ns;
             S_BVALID_ext <= '1';
-            wait for 100 ns;
+            wait for 300 ns;
             S_BVALID_ext <= '0';
+             
+            
+            -- READ
+            
+            -- stage 8
+            stage <= 8;
+            S_ARUSER_ext <= b"0000000000000000"; 
+            S_ARID_ext <= b"100000"; -- remap to 000000-000111 (this remap to 000000)
+            wait for 100 ns;
+            S_ARVALID_ext <= '1';
+            wait for 300 ns;
+            S_ARVALID_ext <= '0';
+            wait for 100 ns;
+            
+            -- stage 9
+            stage <= 9;
+            S_ARUSER_ext <= b"0000000000000001"; -- remap to 001000-001111 (this remap to 001000)
+            S_ARID_ext <= b"010000";
+            wait for 100 ns;
+            S_ARVALID_ext <= '1';
+            wait for 300 ns;
+            S_ARVALID_ext <= '0';
+            wait for 100 ns;
+            
+            -- stage 10
+            stage <= 10;
+            S_ARUSER_ext <= b"0000000000000001"; -- remap to 001000-001111 (this remap to 001000)
+            S_ARID_ext <= b"010000";
+            wait for 100 ns;
+            S_ARVALID_EXT <= '1';
+            wait for 300 ns;
+            S_ARVALID_EXT <= '0';
+            wait for 100 ns;
+            
+            --stage 11
+            stage <= 11;
+            S_RID_ext <= b"001000"; -- remap to saved 100000 on the first awuser of all zeros
+            wait for 100 ns;
+            S_RVALID_ext <= '1';
+            wait for 300 ns;
+            S_RVALID_ext <= '0';
+            wait for 100 ns;
+            
+            -- stage 12
+            stage <= 12;
+            S_ARUSER_ext <= b"0000000000000001"; -- remap to 001000-001111 (this remap to 001000)
+            S_ARID_ext <= b"010000";
+            wait for 100 ns;
+            S_ARVALID_EXT <= '1';
+            wait for 300 ns;
+            S_ARVALID_EXT <= '0';
+            wait for 100 ns;
+            
+            -- stage 13
+            stage <= 13;
+            S_RID_ext <= b"001000"; -- remap to saved 000000 on the first awuser of all zeros
+            wait for 100 ns;
+            S_RVALID_ext <= '1';
+            wait for 300 ns;
+            S_RVALID_ext <= '0';
+            wait for 100 ns;
+            
+            -- stage 14
+            stage <= 14;
+            S_RID_ext <= b"000000"; -- remap to saved 100000 on the first awuser of all zeros
+            wait for 100 ns;
+            S_RVALID_ext <= '1';
+            wait for 300 ns;
+            S_RVALID_ext <= '0';
+            
             wait for 3000 ns;
-            testing <= false; 
+            testing <= false;
 		end process;
     end;

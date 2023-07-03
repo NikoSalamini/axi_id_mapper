@@ -118,10 +118,17 @@ architecture Structural of AXI_ID_Mapper is
     signal axi_ids_rsp_read: std_logic_vector( (NMaster*AXI_ID_WIDTH)-1 downto 0) := (others => '0');
     
     -- master axi valid signals
+    -- write
     signal m_axi_awvalid: std_logic := '0';
     signal m_axi_bvalid: std_logic := '0';
     signal m_axi_awid: std_logic_vector(AXI_ID_WIDTH-1 downto 0) := (others => '0');
     signal m_axi_bid: std_logic_vector(AXI_ID_WIDTH-1 downto 0) := (others => '0');
+    -- read
+    signal m_axi_arvalid: std_logic := '0';
+    signal m_axi_rvalid: std_logic := '0';
+    signal m_axi_arid: std_logic_vector(AXI_ID_WIDTH-1 downto 0) := (others => '0');
+    signal m_axi_rid: std_logic_vector(AXI_ID_WIDTH-1 downto 0) := (others => '0');
+    
 begin
     -- each master has its own write and read LUT
     -- define the initial values to not overlap between the LUTs
@@ -241,69 +248,55 @@ begin
     -- --------------------------------------WRITE CHANNEL--------------------------------------------------------
     
     -- --------------------------------------READ CHANNEL---------------------------------------------------------
-    process(clk, S_ARVALID)
-        begin
-            if S_ARVALID = '1' then
-                -- which to connect for mapping? Depend to ARUSER
-                valids_req_read(natural(to_integer(unsigned(S_ARUSER)))) <= S_ARVALID;
-            elsif S_ARVALID = '0' then
-                -- set all to 0
-                valids_req_read <= (others => '0');
-                -- if the master set ARVALID to 0, It must set it immmediately
-                M_ARVALID <= '0';
-            elsif rising_edge(clk) then
-                -- keeps the values
-                valids_req_read <= (others => '0');
-            end if;
-    end process;
-    
-    -- when one of the luts set his valid signal, M_AWID is updated
-    process(valid_req_read_out, axi_ids_req_read, S_ARVALID)
+    process(clk, S_ARVALID, valid_req_read_out, axi_ids_req_read)
     begin
-        if S_ARVALID = '1' then
+        if rising_edge(S_ARVALID) then
+            -- which to connect for mapping? Depend to AWUSER
+            valids_req_read(natural(to_integer(unsigned(S_ARUSER)))) <= '1';
+        elsif S_ARVALID = '0' then
+             m_axi_arvalid <= '0';
+        elsif rising_edge(clk) then
             for i in (NMaster-1) downto 0 loop
                 if valid_req_read_out(i) = '1' then
-                    M_ARID <= axi_ids_req_read((to_integer(unsigned(S_ARUSER)) + 1) * AXI_ID_WIDTH - 1 downto to_integer(unsigned(S_ARUSER)) * AXI_ID_WIDTH);
-                    M_ARVALID <= '1';
+                    m_axi_arid <= axi_ids_req_read((to_integer(unsigned(S_ARUSER)) + 1) * AXI_ID_WIDTH - 1 downto to_integer(unsigned(S_ARUSER)) * AXI_ID_WIDTH);
+                    m_axi_arvalid <= '1';
+                    valids_req_read <= (others => '0');
                 end if;
             end loop;
         end if;
-    end process;
+     end process;
     
-    -- response channel
-    -- when the signal indicating a valid response id goes high then i activate the correct lut
-    process(clk, S_RVALID)
+    -- when one of the luts set his valid signal, M_ARID is updated
+    process(clk, S_RVALID, valid_rsp_read_out, axi_ids_rsp_read)
     begin
-        if S_RVALID = '1' then
+        if rising_edge(S_RVALID) then
             -- which to connect for inverse mapping?
             for i in (NMaster - 1) downto 0 loop
+                -- the match is based on the range
+                -- i*POOL_SIZE_LUT is the first map assigned to the i-th LUT and FIRST_POOL_VALUE + POOL_SIZE -1 is the last
                 if (to_unsigned(i*POOL_SIZE_LUT + POOL_SIZE_LUT - 1, AXI_ID_WIDTH) >= unsigned(S_RID)) 
                 and (unsigned(S_RID)) >= (to_unsigned(i*POOL_SIZE_LUT, AXI_ID_WIDTH)) then
-                    valids_rsp_read(i) <= S_RVALID;
+                    valids_rsp_read(i) <= '1';
                 end if;
             end loop;
         elsif S_RVALID = '0' then
-            -- set all to 0
-            valids_rsp_read <= (others => '0');
-            -- if the master set AWVALID to 0, It must set it immmediately
-            M_RVALID <= '0';
+             m_axi_rvalid <= '0';
         elsif rising_edge(clk) then
-            -- keeps the values
-            valids_rsp_read <= (others => '0');
-        end if;
-    end process;
-    
-    process(valid_rsp_read_out, axi_ids_rsp_read)
-    begin
-        if S_RVALID = '1' then
             for i in (NMaster-1) downto 0 loop
                 if valid_rsp_read_out(i) = '1' then
-                    M_RID <= axi_ids_rsp_read((i+1)*AXI_ID_WIDTH -1 downto i*AXI_ID_WIDTH);
-                    M_RVALID <= '1';
+                    m_axi_rid <= axi_ids_rsp_read((i+1)*AXI_ID_WIDTH -1 downto i*AXI_ID_WIDTH);
+                    m_axi_rvalid <= '1';
+                    valids_rsp_read <= (others => '0');
                 end if;
             end loop;
         end if;
-    end process;
+     end process;
+     
+     M_ARVALID <= m_axi_arvalid;
+     M_ARID <= m_axi_arid;
+     M_RVALID <= m_axi_rvalid;
+     M_RID <= m_axi_rid;
+    
     
     
     -- --------------------------------------READ CHANNEL---------------------------------------------------------
