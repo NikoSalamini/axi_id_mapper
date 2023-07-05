@@ -171,7 +171,8 @@ end process;
     -- mapping the output port
     M_AXI_VALID_REQ <= m_axi_valid_req_signal;
     M_AXI_VALID_RSP <= m_axi_valid_rsp_signal;
-    error <= error_signal_rsp or error_signal_req;
+    -- error <= error_signal_rsp or error_signal_req;
+    error <= '0';
     
     activate_registers_gen: for i in (POOL_SIZE - 1) downto 0 generate  
         -- should be activated only when 10 or 01
