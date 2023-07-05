@@ -191,14 +191,13 @@ begin
     -- at the next clock no registers will be enabled
     
     -- AWUSER is not set in the sensitivity list because is certainly set when AWVALID is high 
-    process(clk, S_AWVALID, valid_req_write_out, axi_ids_req_write)
+    process(S_AWVALID, valid_req_write_out, axi_ids_req_write)
     begin
-        if rising_edge(S_AWVALID) then
+        -- if rising_edge (clk)
+        if S_AWVALID = '1' and m_axi_awvalid = '0' then
             -- which to connect for mapping? Depend to AWUSER
             valids_req_write(natural(to_integer(unsigned(S_AWUSER)))) <= '1';
-        elsif S_AWVALID = '0' then
-             m_axi_awvalid <= '0';
-        elsif rising_edge(clk) then
+            -- check for new valid_req_write from the LUT
             for i in (NMaster-1) downto 0 loop
                 if valid_req_write_out(i) = '1' then
                     m_axi_awid <= axi_ids_req_write((to_integer(unsigned(S_AWUSER)) + 1) * AXI_ID_WIDTH - 1 downto to_integer(unsigned(S_AWUSER)) * AXI_ID_WIDTH);
@@ -206,6 +205,8 @@ begin
                     valids_req_write <= (others => '0');
                 end if;
             end loop;
+        elsif S_AWVALID = '0' then
+             m_axi_awvalid <= '0';
         end if;
      end process;
      
@@ -214,9 +215,9 @@ begin
     -- valid_rsp_write activate a LUT --> when the LUT is ready for the remapping it sets valid_rsp_write_out
     -- the axi id mapper see which one has been set and perform remapping
     -- when one of the luts set his valid signal, M_BID is updated
-    process(clk, S_BVALID, valid_rsp_write_out, axi_ids_rsp_write)
+    process(S_BVALID, valid_rsp_write_out, axi_ids_rsp_write)
     begin
-        if rising_edge(S_BVALID) then
+        if S_BVALID = '1' and m_axi_bvalid = '0' then
             -- which to connect for inverse mapping?
             for i in (NMaster - 1) downto 0 loop
                 -- the match is based on the range
@@ -226,16 +227,16 @@ begin
                     valids_rsp_write(i) <= '1';
                 end if;
             end loop;
+            -- check if the response is ready
+            for i in (NMaster-1) downto 0 loop
+            if valid_rsp_write_out(i) = '1' then
+                m_axi_bid <= axi_ids_rsp_write((i+1)*AXI_ID_WIDTH -1 downto i*AXI_ID_WIDTH);
+                m_axi_bvalid <= '1';
+                valids_rsp_write <= (others => '0');
+            end if;
+            end loop;
         elsif S_BVALID = '0' then
              m_axi_bvalid <= '0';
-        elsif rising_edge(clk) then
-            for i in (NMaster-1) downto 0 loop
-                if valid_rsp_write_out(i) = '1' then
-                    m_axi_bid <= axi_ids_rsp_write((i+1)*AXI_ID_WIDTH -1 downto i*AXI_ID_WIDTH);
-                    m_axi_bvalid <= '1';
-                    valids_rsp_write <= (others => '0');
-                end if;
-            end loop;
         end if;
      end process;
      
@@ -248,14 +249,11 @@ begin
     -- --------------------------------------WRITE CHANNEL--------------------------------------------------------
     
     -- --------------------------------------READ CHANNEL---------------------------------------------------------
-    process(clk, S_ARVALID, valid_req_read_out, axi_ids_req_read)
+    process(S_ARVALID, valid_req_read_out, axi_ids_req_read)
     begin
-        if rising_edge(S_ARVALID) then
+        if S_ARVALID = '1' and m_axi_arvalid = '0' then
             -- which to connect for mapping? Depend to AWUSER
             valids_req_read(natural(to_integer(unsigned(S_ARUSER)))) <= '1';
-        elsif S_ARVALID = '0' then
-             m_axi_arvalid <= '0';
-        elsif rising_edge(clk) then
             for i in (NMaster-1) downto 0 loop
                 if valid_req_read_out(i) = '1' then
                     m_axi_arid <= axi_ids_req_read((to_integer(unsigned(S_ARUSER)) + 1) * AXI_ID_WIDTH - 1 downto to_integer(unsigned(S_ARUSER)) * AXI_ID_WIDTH);
@@ -263,13 +261,15 @@ begin
                     valids_req_read <= (others => '0');
                 end if;
             end loop;
+        elsif S_ARVALID = '0' then
+             m_axi_arvalid <= '0';
         end if;
      end process;
     
     -- when one of the luts set his valid signal, M_ARID is updated
-    process(clk, S_RVALID, valid_rsp_read_out, axi_ids_rsp_read)
+    process(S_RVALID, valid_rsp_read_out, axi_ids_rsp_read)
     begin
-        if rising_edge(S_RVALID) then
+        if S_RVALID = '1' and m_axi_rvalid = '0' then
             -- which to connect for inverse mapping?
             for i in (NMaster - 1) downto 0 loop
                 -- the match is based on the range
@@ -279,9 +279,6 @@ begin
                     valids_rsp_read(i) <= '1';
                 end if;
             end loop;
-        elsif S_RVALID = '0' then
-             m_axi_rvalid <= '0';
-        elsif rising_edge(clk) then
             for i in (NMaster-1) downto 0 loop
                 if valid_rsp_read_out(i) = '1' then
                     m_axi_rid <= axi_ids_rsp_read((i+1)*AXI_ID_WIDTH -1 downto i*AXI_ID_WIDTH);
@@ -289,6 +286,8 @@ begin
                     valids_rsp_read <= (others => '0');
                 end if;
             end loop;
+        elsif S_RVALID = '0' then
+             m_axi_rvalid <= '0';
         end if;
      end process;
      
