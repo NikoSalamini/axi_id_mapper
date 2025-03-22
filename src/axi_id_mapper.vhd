@@ -1,7 +1,7 @@
 LIBRARY ieee;
 USE ieee.std_logic_1164.ALL;
 USE ieee.numeric_std.ALL;
-ENTITY AXI_ID_Mapper_full_axi4 IS
+ENTITY axi_id_mapper IS
 	GENERIC (
 
 		-- ENFORCEMENT GENERICS
@@ -293,9 +293,9 @@ ENTITY AXI_ID_Mapper_full_axi4 IS
 		-- accept the read data and response information.
 		S_AXI_RREADY : IN STD_LOGIC
 	);
-END ENTITY AXI_ID_Mapper_full_axi4;
+END ENTITY axi_id_mapper;
 
-ARCHITECTURE implementation OF AXI_ID_Mapper_full_axi4 IS
+ARCHITECTURE implementation OF axi_id_mapper IS
 
 	-- functions --
 	-- select mapping AXUSER
